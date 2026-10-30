@@ -3,6 +3,46 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--app-page);
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--app-page);
+    color: var(--app-ink);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    accent-color: var(--app-brand);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--app-brand) 24%, transparent);
+    color: var(--app-ink);
+  }
+
+  :where(button, a[href], summary, [role='button']):focus-visible {
+    outline: 2px solid var(--app-brand);
+    outline-offset: 3px;
+  }
+
   button:not(:disabled),
   a[href],
   select:not(:disabled),
@@ -40,13 +80,13 @@
 
 :root {
   color-scheme: light;
-  --app-page: #f6f7fc;
+  --app-page: #f3f5fb;
   --app-surface: #fff;
-  --app-soft: #f8f9ff;
-  --app-ink: #222642;
-  --app-muted: #727b98;
-  --app-line: #e7e9f2;
-  --app-brand: #4f4ff1;
+  --app-soft: #f7f8fd;
+  --app-ink: #17213b;
+  --app-muted: #586783;
+  --app-line: #dfe5f0;
+  --app-brand: #4f46e5;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -54,17 +94,20 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --app-page: #121629;
-  --app-surface: #1d2239;
-  --app-soft: #252b44;
-  --app-ink: #f3f4ff;
-  --app-muted: #b1b8d2;
-  --app-line: #353b55;
-  --app-brand: #a3a1ff;
+  --app-page: #0d1424;
+  --app-surface: #182238;
+  --app-soft: #222d45;
+  --app-ink: #f1f4fc;
+  --app-muted: #acb9d3;
+  --app-line: #37435c;
+  --app-brand: #a5b4fc;
 }
 
-body { margin: 0; min-width: 320px; }
 #root { min-height: 100vh; }
+
+#root > .bg-page {
+  background-image: radial-gradient(ellipse at 82% 0%, color-mix(in srgb, var(--app-brand) 5%, transparent), transparent 44%);
+}
 
 .phone-field {
   --PhoneInput-color--focus: var(--app-brand);
@@ -83,7 +126,11 @@ body { margin: 0; min-width: 320px; }
   outline: 0;
   color: var(--app-ink);
   min-height: 2.75rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .phone-field .PhoneInputInput::placeholder { color: var(--app-muted); }
-.phone-field .PhoneInputCountry { margin-right: 0.75rem; }
+.phone-field .PhoneInputCountry { flex-shrink: 0; margin-right: 0.75rem; }
+.phone-field .PhoneInputCountry:focus-within { border-radius: 0.25rem; outline: 2px solid var(--app-brand); outline-offset: 2px; }
+.phone-field .PhoneInputCountryIcon { overflow: hidden; border-radius: 0.2rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-ink) 15%, transparent); }

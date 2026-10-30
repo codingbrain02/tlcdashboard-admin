@@ -19,22 +19,51 @@ type Shift = {
 }
 
 function localDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(new Date(value))
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
 
-function Pager({ page, hasMore, busy, go }: {
-  page: number; hasMore: boolean; busy: boolean; go: (page: number) => void
+function localTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(value))
+}
+
+function initials(value: string | null | undefined) {
+  const names = (value || '').trim().split(/\s+/).filter(Boolean)
+  return (names.length > 1 ? names[0][0] + names[names.length - 1][0] : names[0]?.slice(0, 2) || '?').toLocaleUpperCase()
+}
+
+function DateStamp({ value }: { value: string | null }) {
+  if (!value) return <span className="text-xs font-semibold text-brand">In progress</span>
+  return <time dateTime={value} className="block tabular-nums">
+    <span className="block font-medium text-ink">{localDate(value)}</span>
+    <span className="mt-0.5 block text-xs text-muted">{localTime(value)}</span>
+  </time>
+}
+
+function StatusBadge({ active, activeText, inactiveText }: {
+  active: boolean; activeText: string; inactiveText: string
 }) {
-  return <div className="mt-5 flex items-center justify-end gap-3 text-sm">
-    <button type="button" disabled={busy || page === 0} onClick={() => go(page - 1)} className="min-h-10 rounded-lg border border-line px-3 font-semibold disabled:opacity-40">Previous</button>
-    <span className="text-muted">Page {page + 1}</span>
-    <button type="button" disabled={busy || !hasMore} onClick={() => go(page + 1)} className="min-h-10 rounded-lg border border-line px-3 font-semibold disabled:opacity-40">Next</button>
-  </div>
+  return <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ' + (active
+    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300'
+    : 'bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300')}>
+    <span aria-hidden="true" className={'size-1.5 rounded-full ' + (active ? 'bg-emerald-500' : 'bg-slate-400')} />
+    {active ? activeText : inactiveText}
+  </span>
 }
 
-export default function Overview() {
+function Pager({ page, hasMore, busy, go, label }: {
+  page: number; hasMore: boolean; busy: boolean; go: (page: number) => void; label: string
+}) {
+  const control = 'min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink'
+  return <nav aria-label={label + ' pages'} className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-7">
+    <span className="text-xs text-muted">{label} <span className="font-semibold text-ink">/ Page {page + 1}</span></span>
+    <div className="flex items-center gap-2">
+      <button type="button" disabled={busy || page === 0} onClick={() => go(page - 1)} className={control}>Previous</button>
+      <button type="button" disabled={busy || !hasMore} onClick={() => go(page + 1)} className={control}>Next</button>
+    </div>
+  </nav>
+}
+
+export default function Overview({ onCreateEmployee }: { onCreateEmployee: () => void }) {
   const [employeePage, setEmployeePage] = useState(0)
   const [attendancePage, setAttendancePage] = useState(0)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -113,11 +142,131 @@ export default function Overview() {
     return () => { live = false }
   }, [attendancePage, attendanceRefresh])
 
-  return <section id="overview" className="min-h-screen border-t border-line bg-page px-5 py-10 text-ink sm:px-8">
-    <p role="status" className="mx-auto max-w-6xl pb-3 text-right text-xs text-muted">{live ? 'Live updates connected' : 'Reconnecting · checking every 30 seconds'}</p>
-    <div className="mx-auto max-w-6xl"><span className="text-[11px] font-extrabold tracking-widest text-brand">SUPER ADMINISTRATOR</span><h2 className="mt-2 text-3xl font-bold tracking-tight">Organization overview</h2><p className="mt-2 text-sm text-muted">Employee accounts and every attendance record are available here. Times below display in your device’s time zone.</p>
-      <div className="mt-8 space-y-7"><section className="rounded-2xl border border-line bg-surface p-5 shadow-sm sm:p-7"><h3 className="text-xl font-bold">Employees</h3>{employeesError && <p role="alert" className="mt-4 text-sm text-rose-700 dark:text-rose-300">{employeesError}</p>}<div className="mt-4 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="bg-soft text-xs text-muted"><tr><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Position</th><th className="px-3 py-3">Phone</th><th className="px-3 py-3">Status</th></tr></thead><tbody>{employees.map(employee => <tr key={employee.id} className="border-t border-line"><td className="px-3 py-3 font-semibold">{employee.full_name || 'Unnamed'}</td><td className="px-3 py-3">{employee.email}</td><td className="px-3 py-3">{employee.position || '—'}</td><td className="px-3 py-3">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td><td className="px-3 py-3">{employee.is_active ? 'Active' : 'Inactive'}</td></tr>)}</tbody></table>{!employeesBusy && !employees.length && !employeesError && <p className="p-4 text-center text-sm text-muted">No employee accounts yet.</p>}</div><Pager page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} /></section>
-        <section className="rounded-2xl border border-line bg-surface p-5 shadow-sm sm:p-7"><h3 className="text-xl font-bold">Attendance records</h3>{shiftsError && <p role="alert" className="mt-4 text-sm text-rose-700 dark:text-rose-300">{shiftsError}</p>}<div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-soft text-xs text-muted"><tr><th className="px-3 py-3">Employee</th><th className="px-3 py-3">Clock in</th><th className="px-3 py-3">Clock out</th><th className="px-3 py-3">Status</th></tr></thead><tbody>{shifts.map(shift => <tr key={shift.id} className="border-t border-line"><td className="px-3 py-3 font-semibold">{shift.full_name}</td><td className="px-3 py-3">{localDate(shift.clock_in)}</td><td className="px-3 py-3">{shift.clock_out ? localDate(shift.clock_out) : '—'}</td><td className="px-3 py-3">{shift.clock_out ? 'Completed' : 'On duty'}</td></tr>)}</tbody></table>{!shiftsBusy && !shifts.length && !shiftsError && <p className="p-4 text-center text-sm text-muted">No attendance records yet.</p>}</div><Pager page={attendancePage} hasMore={shiftsMore} busy={shiftsBusy} go={page => { setShiftsBusy(true); setAttendancePage(page) }} /></section></div>
+  const activeShifts = shifts.filter(shift => !shift.clock_out).length
+
+  return <section id="overview" aria-labelledby="overview-heading" className="space-y-6 text-ink">
+    <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-[#7778ff]/40 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/3 size-52 rounded-full bg-[#7778ff]/20 blur-3xl" />
+      <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,370px)] lg:items-end">
+        <div>
+          <span className="text-[11px] font-bold tracking-[.18em] text-white/75">SUPER ADMINISTRATOR / OVERVIEW</span>
+          <h2 id="overview-heading" className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Your team at a glance.</h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review employee accounts and attendance activity in one place.</p>
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span role="status" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
+              <span aria-hidden="true" className={'size-2 rounded-full ' + (live ? 'bg-emerald-300' : 'bg-amber-300')} />
+              {live ? 'Live updates connected' : 'Reconnecting · checks every 30 seconds'}
+            </span>
+            <span className="text-xs text-white/75">Times shown in your device’s time zone</span>
+          </div>
+          <button type="button" onClick={onCreateEmployee} className="mt-7 inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#303398] shadow-sm transition hover:bg-[#eef0ff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Create employee <span aria-hidden="true">→</span></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
+            <span className="block text-[11px] font-semibold tracking-wide text-white/75">EMPLOYEES LISTED</span>
+            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{employeesBusy && !employees.length ? '—' : employees.length}</strong>
+            <span className="mt-1 block text-xs text-white/75">On the current page</span>
+          </div>
+          <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
+            <span className="block text-[11px] font-semibold tracking-wide text-white/75">ON DUTY</span>
+            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{shiftsBusy && !shifts.length ? '—' : activeShifts}</strong>
+            <span className="mt-1 block text-xs text-white/75">In listed shifts</span>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <section aria-labelledby="employees-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">01</span>
+          <div>
+            <h3 id="employees-heading" className="text-lg font-bold tracking-tight">Employee directory</h3>
+            <p className="mt-0.5 text-xs text-muted">Your team and their contact details</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{employeesBusy ? 'Loading…' : employees.length + ' shown'}</span>
+      </div>
+      {employeesError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{employeesError}</p>}
+      {employees.length ? <>
+        <ul className="divide-y divide-line border-t border-line lg:hidden">
+          {employees.map(employee => <li key={employee.id} className="px-5 py-4 sm:px-7">
+            <div className="flex items-start gap-3">
+              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span>
+              <div className="min-w-0 flex-1">
+                <strong className="block text-sm font-semibold leading-5">{employee.full_name || 'Unnamed'}</strong>
+                <span className="mt-1 block break-all text-xs text-muted">{employee.email}</span>
+              </div>
+              <StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" />
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-3 pl-[52px] text-xs">
+              <div className="min-w-0"><dt className="text-muted">Position</dt><dd className="mt-1 break-words font-medium">{employee.position || '—'}</dd></div>
+              <div className="min-w-0"><dt className="text-muted">Phone</dt><dd className="mt-1 break-words font-medium">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</dd></div>
+            </dl>
+          </li>)}
+        </ul>
+        <div className="hidden overflow-x-auto border-t border-line lg:block">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
+              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-7 py-3">Status</th></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {employees.map(employee => <tr key={employee.id} className="transition-colors hover:bg-soft">
+                <td className="px-7 py-4"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span><div className="min-w-0"><strong className="block font-semibold">{employee.full_name || 'Unnamed'}</strong><span className="block break-all text-xs text-muted">{employee.email}</span></div></div></td>
+                <td className="px-4 py-4">{employee.position || '—'}</td>
+                <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
+                <td className="px-7 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" /></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </> : <p role={employeesBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{employeesBusy ? 'Loading employee accounts…' : employeesError ? 'Employee list unavailable.' : 'No employee accounts yet.'}</p>}
+      <Pager label="Employees" page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} />
+    </section>
+
+    <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">02</span>
+          <div>
+            <h3 id="attendance-heading" className="text-lg font-bold tracking-tight">Attendance activity</h3>
+            <p className="mt-0.5 text-xs text-muted">Latest shifts first · local time</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{shiftsBusy ? 'Loading…' : shifts.length + ' shown'}</span>
+      </div>
+      {shiftsError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{shiftsError}</p>}
+      {shifts.length ? <>
+        <ul className="divide-y divide-line border-t border-line lg:hidden">
+          {shifts.map(shift => <li key={shift.id} className="px-5 py-4 sm:px-7">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <strong className="text-sm font-semibold">{shift.full_name || 'Unnamed'}</strong>
+              <StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText="Completed" />
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+              <div><dt className="mb-1 text-muted">Clock in</dt><dd><DateStamp value={shift.clock_in} /></dd></div>
+              <div><dt className="mb-1 text-muted">Clock out</dt><dd><DateStamp value={shift.clock_out} /></dd></div>
+            </dl>
+          </li>)}
+        </ul>
+        <div className="hidden overflow-x-auto border-t border-line lg:block">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
+              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Clock in</th><th scope="col" className="px-4 py-3">Clock out</th><th scope="col" className="px-7 py-3">Status</th></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {shifts.map(shift => <tr key={shift.id} className="transition-colors hover:bg-soft">
+                <td className="px-7 py-4 font-semibold">{shift.full_name || 'Unnamed'}</td>
+                <td className="px-4 py-4"><DateStamp value={shift.clock_in} /></td>
+                <td className="px-4 py-4"><DateStamp value={shift.clock_out} /></td>
+                <td className="px-7 py-4"><StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText="Completed" /></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </> : <p role={shiftsBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{shiftsBusy ? 'Loading attendance records…' : shiftsError ? 'Attendance unavailable.' : 'No attendance records yet.'}</p>}
+      <Pager label="Attendance" page={attendancePage} hasMore={shiftsMore} busy={shiftsBusy} go={page => { setShiftsBusy(true); setAttendancePage(page) }} />
+    </section>
   </section>
 }
