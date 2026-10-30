@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { formatPhoneNumberIntl } from 'react-phone-number-input'
 import { supabase } from './supabase'
+import EmployeeDetail from './EmployeeDetail'
 
 type Employee = {
   id: string
@@ -63,8 +64,10 @@ function Pager({ page, hasMore, busy, go, label }: {
   </nav>
 }
 
-export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCreateEmployee: () => void; mode?: 'overview' | 'employees' }) {
+export default function Overview({ onCreateEmployee, mode = 'overview', canEdit = false }: { onCreateEmployee: () => void; mode?: 'overview' | 'employees'; canEdit?: boolean }) {
   const showAttendance = mode === 'overview'
+  const showEmployees = mode === 'employees'
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [employeePage, setEmployeePage] = useState(0)
   const [attendancePage, setAttendancePage] = useState(0)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -87,7 +90,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
     const refreshAttendance = () => setAttendanceRefresh(current => current + 1)
     const refreshEmployees = () => setEmployeeRefresh(current => current + 1)
     const refreshAll = () => {
-      refreshEmployees()
+      if (showEmployees) refreshEmployees()
       if (showAttendance) refreshAttendance()
     }
     const queueAttendance = () => {
@@ -99,6 +102,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
       employeeDebounce = window.setTimeout(refreshEmployees, 250)
     }
     const channel = client.channel(showAttendance ? 'admin-overview' : 'admin-employees')
+    if (showEmployees) channel
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employee_profiles' }, queueEmployees)
     if (showAttendance) channel
@@ -119,10 +123,10 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
       window.removeEventListener('online', refreshAll)
       void client.removeChannel(channel)
     }
-  }, [showAttendance])
+  }, [showAttendance, showEmployees])
 
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase || !showEmployees) return
     let live = true
     void supabase.functions.invoke('admin-api', { body: { action: 'list-employees', page: employeePage } })
       .then(result => {
@@ -132,7 +136,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
       }).catch(() => { if (live) setEmployeesError('Could not load employees.') })
       .finally(() => { if (live) setEmployeesBusy(false) })
     return () => { live = false }
-  }, [employeePage, employeeRefresh])
+  }, [employeePage, employeeRefresh, showEmployees])
 
   useEffect(() => {
     if (!supabase || !showAttendance) return
@@ -149,6 +153,10 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
 
   const activeShifts = shifts.filter(shift => !shift.clock_out).length
 
+  if (showEmployees && selectedEmployeeId) {
+    return <EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => setSelectedEmployeeId(null)} />
+  }
+
   return <section id={showAttendance ? 'overview' : 'employees'} aria-labelledby={showAttendance ? 'overview-heading' : 'employees-heading'} className="space-y-6 text-ink">
     {showAttendance && <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-[#7778ff]/40 blur-3xl" />
@@ -157,7 +165,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
         <div>
           <span className="text-[11px] font-bold tracking-[.18em] text-white/75">TEAM OVERVIEW</span>
           <h2 id="overview-heading" className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Your team at a glance.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review employee accounts and attendance activity in one place.</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review attendance activity and current shifts in one place.</p>
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
             <span role="status" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
               <span aria-hidden="true" className={'size-2 rounded-full ' + (live ? 'bg-emerald-300' : 'bg-amber-300')} />
@@ -169,8 +177,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
-            <span className="block text-[11px] font-semibold tracking-wide text-white/75">EMPLOYEES LISTED</span>
-            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{employeesBusy && !employees.length ? '—' : employees.length}</strong>
+            <span className="block text-[11px] font-semibold tracking-wide text-white/75">RECENT SHIFTS</span>
+            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length}</strong>
             <span className="mt-1 block text-xs text-white/75">On the current page</span>
           </div>
           <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
@@ -182,7 +190,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
       </div>
     </div>}
 
-    <section aria-labelledby="employees-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+    {showEmployees && <section aria-labelledby="employees-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 items-center gap-3">
           <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">01</span>
@@ -209,26 +217,28 @@ export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCr
               <div className="min-w-0"><dt className="text-muted">Position</dt><dd className="mt-1 break-words font-medium">{employee.position || '—'}</dd></div>
               <div className="min-w-0"><dt className="text-muted">Phone</dt><dd className="mt-1 break-words font-medium">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</dd></div>
             </dl>
+            <button type="button" onClick={() => setSelectedEmployeeId(employee.id)} className="mt-4 min-h-10 rounded-xl border border-line bg-surface px-4 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile and attendance</button>
           </li>)}
         </ul>
         <div className="hidden overflow-x-auto border-t border-line lg:block">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
-              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-7 py-3">Status</th></tr>
+              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-7 py-3">Details</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {employees.map(employee => <tr key={employee.id} className="transition-colors hover:bg-soft">
                 <td className="px-7 py-4"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span><div className="min-w-0"><strong className="block font-semibold">{employee.full_name || 'Unnamed'}</strong><span className="block break-all text-xs text-muted">{employee.email}</span></div></div></td>
                 <td className="px-4 py-4">{employee.position || '—'}</td>
                 <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
-                <td className="px-7 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" /></td>
+                <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" /></td>
+                <td className="px-7 py-4"><button type="button" onClick={() => setSelectedEmployeeId(employee.id)} className="min-h-9 rounded-lg border border-line px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile</button></td>
               </tr>)}
             </tbody>
           </table>
         </div>
       </> : <p role={employeesBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{employeesBusy ? 'Loading employee accounts…' : employeesError ? 'Employee list unavailable.' : 'No employee accounts yet.'}</p>}
       <Pager label="Employees" page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} />
-    </section>
+    </section>}
 
     {showAttendance && <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
