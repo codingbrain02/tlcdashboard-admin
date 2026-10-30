@@ -4,7 +4,7 @@ This admin app uses the same Supabase project as the employee app; it does not n
 
 Both administrator roles can view employee records and attendance and can create employee accounts. Only the Super Administrator can view and create administrator accounts. Regular administrators cannot read other administrator profiles or administrator attendance, including the Super Administrator's personal details. Apply the parent project's migrations and deploy its `admin-api` function before deploying this frontend.
 
-Overview shows attendance activity. Employees lists employee accounts; selecting one opens the employee's work profile and paginated attendance history. Regular administrators have read-only access. The Super Administrator can edit full name, position, and phone number; employees manage their own sign-in email.
+Overview shows attendance activity. Employees lists employee accounts with live, server-side name and position search, account-status filtering, and name or position sorting across all pages. Selecting an employee opens their work profile and paginated attendance history. Regular administrators have read-only access. The Super Administrator can edit full name, position, and phone number; employees manage their own sign-in email.
 
 Run `npm install`, `npm run dev`, `npm run lint`, and `npm run build` from this folder. The public Supabase URL and publishable key come from the parent project's `.env.local`. Never place a service key in a `VITE_` variable.
 

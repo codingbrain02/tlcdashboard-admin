@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { formatPhoneNumberIntl } from 'react-phone-number-input'
 import { supabase } from './supabase'
 import EmployeeDetail from './EmployeeDetail'
+import { positionGroups } from './positions'
 
 type Employee = {
   id: string
@@ -69,6 +70,10 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   const showEmployees = mode === 'employees'
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [employeePage, setEmployeePage] = useState(0)
+  const [nameSearch, setNameSearch] = useState('')
+  const [positionSearch, setPositionSearch] = useState('')
+  const [employeeStatus, setEmployeeStatus] = useState('all')
+  const [employeeSort, setEmployeeSort] = useState('newest')
   const [attendancePage, setAttendancePage] = useState(0)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -127,16 +132,31 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
 
   useEffect(() => {
     if (!supabase || !showEmployees) return
+    const client = supabase
     let live = true
-    void supabase.functions.invoke('admin-api', { body: { action: 'list-employees', page: employeePage } })
-      .then(result => {
-        if (!live) return
-        if (result.error || !Array.isArray(result.data?.employees)) setEmployeesError('Could not load employees.')
-        else { setEmployees(result.data.employees); setEmployeesMore(Boolean(result.data.hasMore)); setEmployeesError('') }
-      }).catch(() => { if (live) setEmployeesError('Could not load employees.') })
-      .finally(() => { if (live) setEmployeesBusy(false) })
-    return () => { live = false }
-  }, [employeePage, employeeRefresh, showEmployees])
+    const timer = window.setTimeout(() => {
+      void client.functions.invoke('admin-api', { body: {
+        action: 'list-employees', page: employeePage, name: nameSearch.trim(),
+        position: positionSearch.trim(), status: employeeStatus, sort: employeeSort,
+      } })
+        .then(result => {
+          if (!live) return
+          if (result.error || !Array.isArray(result.data?.employees)) {
+            setEmployees([])
+            setEmployeesMore(false)
+            setEmployeesError('Could not load employees.')
+          }
+          else { setEmployees(result.data.employees); setEmployeesMore(Boolean(result.data.hasMore)); setEmployeesError('') }
+        }).catch(() => {
+          if (!live) return
+          setEmployees([])
+          setEmployeesMore(false)
+          setEmployeesError('Could not load employees.')
+        })
+        .finally(() => { if (live) setEmployeesBusy(false) })
+    }, nameSearch || positionSearch ? 180 : 0)
+    return () => { live = false; window.clearTimeout(timer) }
+  }, [employeePage, employeeRefresh, employeeSort, employeeStatus, nameSearch, positionSearch, showEmployees])
 
   useEffect(() => {
     if (!supabase || !showAttendance) return
@@ -152,6 +172,17 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   }, [attendancePage, attendanceRefresh, showAttendance])
 
   const activeShifts = shifts.filter(shift => !shift.clock_out).length
+  const employeeFiltersActive = Boolean(nameSearch || positionSearch || employeeStatus !== 'all' || employeeSort !== 'newest')
+  const employeeSearchActive = Boolean(nameSearch || positionSearch || employeeStatus !== 'all')
+
+  function resetEmployeeFilters() {
+    setNameSearch('')
+    setPositionSearch('')
+    setEmployeeStatus('all')
+    setEmployeeSort('newest')
+    setEmployeePage(0)
+    setEmployeesBusy(true)
+  }
 
   if (showEmployees && selectedEmployeeId) {
     return <EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => setSelectedEmployeeId(null)} />
@@ -199,9 +230,26 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
             <p className="mt-0.5 text-xs text-muted">Your team and their contact details</p>
           </div>
         </div>
-        <span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{employeesBusy ? 'Loading…' : employees.length + ' shown'}</span>
+        <span role="status" className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{employeesBusy ? 'Updating…' : employees.length + ' on this page'}</span>
+      </div>
+      <div role="search" aria-label="Filter employees" className="grid gap-3 border-t border-line bg-soft/40 px-5 py-4 sm:grid-cols-2 sm:px-7 xl:grid-cols-[minmax(180px,1.5fr)_minmax(160px,1fr)_minmax(130px,.8fr)_minmax(160px,1fr)_auto] xl:items-end">
+        <label className="block min-w-0 text-xs font-semibold text-muted">Search by name
+          <input type="search" value={nameSearch} maxLength={80} onChange={event => { setNameSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Name or part of a name" autoComplete="off" className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
+        </label>
+        <label className="block min-w-0 text-xs font-semibold text-muted">Position
+          <input type="search" list="employee-position-options" value={positionSearch} maxLength={120} onChange={event => { setPositionSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Any position" autoComplete="off" className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
+          <datalist id="employee-position-options">{positionGroups.flatMap(group => group.positions).map(position => <option key={position} value={position} />)}</datalist>
+        </label>
+        <label className="block min-w-0 text-xs font-semibold text-muted">Status
+          <select value={employeeStatus} onChange={event => { setEmployeeStatus(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="all">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        </label>
+        <label className="block min-w-0 text-xs font-semibold text-muted">Sort by
+          <select value={employeeSort} onChange={event => { setEmployeeSort(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="newest">Newest added</option><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="position-asc">Position A–Z</option><option value="position-desc">Position Z–A</option></select>
+        </label>
+        <button type="button" disabled={!employeeFiltersActive} onClick={resetEmployeeFilters} className="min-h-11 rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 xl:col-span-1">Clear filters</button>
       </div>
       {employeesError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{employeesError}</p>}
+      <div id="employee-results" aria-busy={employeesBusy}>
       {employees.length ? <>
         <ul className="divide-y divide-line border-t border-line lg:hidden">
           {employees.map(employee => <li key={employee.id} className="px-5 py-4 sm:px-7">
@@ -236,7 +284,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
             </tbody>
           </table>
         </div>
-      </> : <p role={employeesBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{employeesBusy ? 'Loading employee accounts…' : employeesError ? 'Employee list unavailable.' : 'No employee accounts yet.'}</p>}
+      </> : <p role={employeesBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{employeesBusy ? 'Finding employees…' : employeesError ? 'Employee list unavailable.' : employeeSearchActive ? 'No employees match these filters.' : 'No employee accounts yet.'}</p>}
+      </div>
       <Pager label="Employees" page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} />
     </section>}
 
