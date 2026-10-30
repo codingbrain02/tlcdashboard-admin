@@ -45,6 +45,30 @@ export default function Overview() {
   const [shiftsBusy, setShiftsBusy] = useState(true)
   const [employeesError, setEmployeesError] = useState('')
   const [shiftsError, setShiftsError] = useState('')
+  const [attendanceRefresh, setAttendanceRefresh] = useState(0)
+
+  useEffect(() => {
+    if (!supabase) return
+    const client = supabase
+    let debounce: number | undefined
+    const refresh = () => setAttendanceRefresh(current => current + 1)
+    const channel = client.channel('super-admin-attendance')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
+        window.clearTimeout(debounce)
+        debounce = window.setTimeout(refresh, 250)
+      })
+      .subscribe(status => { if (status === 'SUBSCRIBED') refresh() })
+    const interval = window.setInterval(refresh, 30_000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('online', refresh)
+    return () => {
+      window.clearTimeout(debounce)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('online', refresh)
+      void client.removeChannel(channel)
+    }
+  }, [])
 
   useEffect(() => {
     if (!supabase) return
@@ -70,7 +94,7 @@ export default function Overview() {
       }).catch(() => { if (live) setShiftsError('Could not load attendance.') })
       .finally(() => { if (live) setShiftsBusy(false) })
     return () => { live = false }
-  }, [attendancePage])
+  }, [attendancePage, attendanceRefresh])
 
   return <section id="overview" className="min-h-screen border-t border-line bg-page px-5 py-10 text-ink sm:px-8">
     <div className="mx-auto max-w-6xl"><span className="text-[11px] font-extrabold tracking-widest text-brand">SUPER ADMINISTRATOR</span><h2 className="mt-2 text-3xl font-bold tracking-tight">Organization overview</h2><p className="mt-2 text-sm text-muted">Employee accounts and every attendance record are available here. Times below display in your device’s time zone.</p>
