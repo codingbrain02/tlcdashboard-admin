@@ -45,27 +45,44 @@ export default function Overview() {
   const [shiftsBusy, setShiftsBusy] = useState(true)
   const [employeesError, setEmployeesError] = useState('')
   const [shiftsError, setShiftsError] = useState('')
+  const [employeeRefresh, setEmployeeRefresh] = useState(0)
   const [attendanceRefresh, setAttendanceRefresh] = useState(0)
+  const [live, setLive] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
     const client = supabase
-    let debounce: number | undefined
-    const refresh = () => setAttendanceRefresh(current => current + 1)
-    const channel = client.channel('super-admin-attendance')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
-        window.clearTimeout(debounce)
-        debounce = window.setTimeout(refresh, 250)
+    let attendanceDebounce: number | undefined
+    let employeeDebounce: number | undefined
+    const refreshAttendance = () => setAttendanceRefresh(current => current + 1)
+    const refreshEmployees = () => setEmployeeRefresh(current => current + 1)
+    const refreshAll = () => { refreshAttendance(); refreshEmployees() }
+    const queueAttendance = () => {
+      window.clearTimeout(attendanceDebounce)
+      attendanceDebounce = window.setTimeout(refreshAttendance, 250)
+    }
+    const queueEmployees = () => {
+      window.clearTimeout(employeeDebounce)
+      employeeDebounce = window.setTimeout(refreshEmployees, 250)
+    }
+    const channel = client.channel('super-admin-overview')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employee_profiles' }, queueEmployees)
+      .subscribe(status => {
+        setLive(status === 'SUBSCRIBED')
+        if (status === 'SUBSCRIBED') refreshAll()
       })
-      .subscribe(status => { if (status === 'SUBSCRIBED') refresh() })
-    const interval = window.setInterval(refresh, 30_000)
-    window.addEventListener('focus', refresh)
-    window.addEventListener('online', refresh)
+    const interval = window.setInterval(refreshAll, 30_000)
+    window.addEventListener('focus', refreshAll)
+    window.addEventListener('online', refreshAll)
     return () => {
-      window.clearTimeout(debounce)
+      window.clearTimeout(attendanceDebounce)
+      window.clearTimeout(employeeDebounce)
       window.clearInterval(interval)
-      window.removeEventListener('focus', refresh)
-      window.removeEventListener('online', refresh)
+      window.removeEventListener('focus', refreshAll)
+      window.removeEventListener('online', refreshAll)
       void client.removeChannel(channel)
     }
   }, [])
@@ -81,7 +98,7 @@ export default function Overview() {
       }).catch(() => { if (live) setEmployeesError('Could not load employees.') })
       .finally(() => { if (live) setEmployeesBusy(false) })
     return () => { live = false }
-  }, [employeePage])
+  }, [employeePage, employeeRefresh])
 
   useEffect(() => {
     if (!supabase) return
@@ -97,6 +114,7 @@ export default function Overview() {
   }, [attendancePage, attendanceRefresh])
 
   return <section id="overview" className="min-h-screen border-t border-line bg-page px-5 py-10 text-ink sm:px-8">
+    <p role="status" className="mx-auto max-w-6xl pb-3 text-right text-xs text-muted">{live ? 'Live updates connected' : 'Reconnecting · checking every 30 seconds'}</p>
     <div className="mx-auto max-w-6xl"><span className="text-[11px] font-extrabold tracking-widest text-brand">SUPER ADMINISTRATOR</span><h2 className="mt-2 text-3xl font-bold tracking-tight">Organization overview</h2><p className="mt-2 text-sm text-muted">Employee accounts and every attendance record are available here. Times below display in your device’s time zone.</p>
       <div className="mt-8 space-y-7"><section className="rounded-2xl border border-line bg-surface p-5 shadow-sm sm:p-7"><h3 className="text-xl font-bold">Employees</h3>{employeesError && <p role="alert" className="mt-4 text-sm text-rose-700 dark:text-rose-300">{employeesError}</p>}<div className="mt-4 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="bg-soft text-xs text-muted"><tr><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Position</th><th className="px-3 py-3">Phone</th><th className="px-3 py-3">Status</th></tr></thead><tbody>{employees.map(employee => <tr key={employee.id} className="border-t border-line"><td className="px-3 py-3 font-semibold">{employee.full_name || 'Unnamed'}</td><td className="px-3 py-3">{employee.email}</td><td className="px-3 py-3">{employee.position || '—'}</td><td className="px-3 py-3">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td><td className="px-3 py-3">{employee.is_active ? 'Active' : 'Inactive'}</td></tr>)}</tbody></table>{!employeesBusy && !employees.length && !employeesError && <p className="p-4 text-center text-sm text-muted">No employee accounts yet.</p>}</div><Pager page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} /></section>
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-sm sm:p-7"><h3 className="text-xl font-bold">Attendance records</h3>{shiftsError && <p role="alert" className="mt-4 text-sm text-rose-700 dark:text-rose-300">{shiftsError}</p>}<div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-soft text-xs text-muted"><tr><th className="px-3 py-3">Employee</th><th className="px-3 py-3">Clock in</th><th className="px-3 py-3">Clock out</th><th className="px-3 py-3">Status</th></tr></thead><tbody>{shifts.map(shift => <tr key={shift.id} className="border-t border-line"><td className="px-3 py-3 font-semibold">{shift.full_name}</td><td className="px-3 py-3">{localDate(shift.clock_in)}</td><td className="px-3 py-3">{shift.clock_out ? localDate(shift.clock_out) : '—'}</td><td className="px-3 py-3">{shift.clock_out ? 'Completed' : 'On duty'}</td></tr>)}</tbody></table>{!shiftsBusy && !shifts.length && !shiftsError && <p className="p-4 text-center text-sm text-muted">No attendance records yet.</p>}</div><Pager page={attendancePage} hasMore={shiftsMore} busy={shiftsBusy} go={page => { setShiftsBusy(true); setAttendancePage(page) }} /></section></div>

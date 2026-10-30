@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import PhoneInput from 'react-phone-number-input'
 import flags from 'react-phone-number-input/flags'
@@ -176,24 +176,31 @@ function AdminForm() {
   const [issued, setIssued] = useState<IssuedPassword | null>(null)
   const [directory, setDirectory] = useState<AdminRecord[]>([])
   const [directoryError, setDirectoryError] = useState('')
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (!supabase) return
     const result = await supabase.from('admin_users').select('id,username,role,must_change_password').order('created_at', { ascending: true })
     if (result.error) setDirectoryError('Could not load administrators.')
     else { setDirectory(result.data as AdminRecord[]); setDirectoryError('') }
-  }
+  }, [])
   useEffect(() => {
     if (!supabase) return
     const client = supabase
-    let mounted = true
-    void client.from('admin_users').select('id,username,role,must_change_password')
-      .order('created_at', { ascending: true }).then(result => {
-        if (!mounted) return
-        if (result.error) setDirectoryError('Could not load administrators.')
-        else setDirectory(result.data as AdminRecord[])
-      })
-    return () => { mounted = false }
-  }, [])
+    queueMicrotask(() => { void refresh() })
+    const channel = client.channel('super-admin-directory')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_users' }, () => { void refresh() })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'admin_users' }, () => { void refresh() })
+      .subscribe(status => { if (status === 'SUBSCRIBED') void refresh() })
+    const interval = window.setInterval(() => { void refresh() }, 30_000)
+    const onFocus = () => { void refresh() }
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('online', onFocus)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('online', onFocus)
+      void client.removeChannel(channel)
+    }
+  }, [refresh])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!supabase || busy) return
