@@ -94,7 +94,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       window.clearTimeout(employeeDebounce)
       employeeDebounce = window.setTimeout(refreshEmployees, 250)
     }
-    const channel = client.channel('super-admin-overview')
+    const channel = client.channel('admin-overview')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
@@ -150,7 +150,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/3 size-52 rounded-full bg-[#7778ff]/20 blur-3xl" />
       <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,370px)] lg:items-end">
         <div>
-          <span className="text-[11px] font-bold tracking-[.18em] text-white/75">SUPER ADMINISTRATOR / OVERVIEW</span>
+          <span className="text-[11px] font-bold tracking-[.18em] text-white/75">TEAM OVERVIEW</span>
           <h2 id="overview-heading" className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Your team at a glance.</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review employee accounts and attendance activity in one place.</p>
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">

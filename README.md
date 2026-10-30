@@ -2,6 +2,8 @@
 
 This admin app uses the same Supabase project as the employee app; it does not need a second database. Follow the [project setup guide](../README.md) before signing in. The first Super Administrator signs in with `codingbrain02@gmail.com`; other admins use a unique username and password. Account creation and temporary passwords are handled by the server-side `admin-api` Edge Function.
 
+Both administrator roles can view the employee directory and attendance in Overview and can create employee accounts. Only the Super Administrator can view and create administrator accounts. Regular administrators cannot read other administrator profiles or administrator attendance, including the Super Administrator's personal details. Apply the parent project's migrations and deploy its `admin-api` function before deploying this frontend.
+
 Run `npm install`, `npm run dev`, `npm run lint`, and `npm run build` from this folder. The public Supabase URL and publishable key come from the parent project's `.env.local`. Never place a service key in a `VITE_` variable.
 
 ---
