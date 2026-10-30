@@ -63,7 +63,8 @@ function Pager({ page, hasMore, busy, go, label }: {
   </nav>
 }
 
-export default function Overview({ onCreateEmployee }: { onCreateEmployee: () => void }) {
+export default function Overview({ onCreateEmployee, mode = 'overview' }: { onCreateEmployee: () => void; mode?: 'overview' | 'employees' }) {
+  const showAttendance = mode === 'overview'
   const [employeePage, setEmployeePage] = useState(0)
   const [attendancePage, setAttendancePage] = useState(0)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -85,7 +86,10 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
     let employeeDebounce: number | undefined
     const refreshAttendance = () => setAttendanceRefresh(current => current + 1)
     const refreshEmployees = () => setEmployeeRefresh(current => current + 1)
-    const refreshAll = () => { refreshAttendance(); refreshEmployees() }
+    const refreshAll = () => {
+      refreshEmployees()
+      if (showAttendance) refreshAttendance()
+    }
     const queueAttendance = () => {
       window.clearTimeout(attendanceDebounce)
       attendanceDebounce = window.setTimeout(refreshAttendance, 250)
@@ -94,15 +98,16 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       window.clearTimeout(employeeDebounce)
       employeeDebounce = window.setTimeout(refreshEmployees, 250)
     }
-    const channel = client.channel('admin-overview')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
+    const channel = client.channel(showAttendance ? 'admin-overview' : 'admin-employees')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employee_profiles' }, queueEmployees)
-      .subscribe(status => {
-        setLive(status === 'SUBSCRIBED')
-        if (status === 'SUBSCRIBED') refreshAll()
-      })
+    if (showAttendance) channel
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
+    channel.subscribe(status => {
+      setLive(status === 'SUBSCRIBED')
+      if (status === 'SUBSCRIBED') refreshAll()
+    })
     const interval = window.setInterval(refreshAll, 30_000)
     window.addEventListener('focus', refreshAll)
     window.addEventListener('online', refreshAll)
@@ -114,7 +119,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       window.removeEventListener('online', refreshAll)
       void client.removeChannel(channel)
     }
-  }, [])
+  }, [showAttendance])
 
   useEffect(() => {
     if (!supabase) return
@@ -130,7 +135,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
   }, [employeePage, employeeRefresh])
 
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase || !showAttendance) return
     let live = true
     void supabase.functions.invoke('admin-api', { body: { action: 'list-attendance', page: attendancePage } })
       .then(result => {
@@ -140,12 +145,12 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       }).catch(() => { if (live) setShiftsError('Could not load attendance.') })
       .finally(() => { if (live) setShiftsBusy(false) })
     return () => { live = false }
-  }, [attendancePage, attendanceRefresh])
+  }, [attendancePage, attendanceRefresh, showAttendance])
 
   const activeShifts = shifts.filter(shift => !shift.clock_out).length
 
-  return <section id="overview" aria-labelledby="overview-heading" className="space-y-6 text-ink">
-    <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
+  return <section id={showAttendance ? 'overview' : 'employees'} aria-labelledby={showAttendance ? 'overview-heading' : 'employees-heading'} className="space-y-6 text-ink">
+    {showAttendance && <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-[#7778ff]/40 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/3 size-52 rounded-full bg-[#7778ff]/20 blur-3xl" />
       <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,370px)] lg:items-end">
@@ -175,7 +180,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
           </div>
         </div>
       </div>
-    </div>
+    </div>}
 
     <section aria-labelledby="employees-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
@@ -225,7 +230,7 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
       <Pager label="Employees" page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} />
     </section>
 
-    <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+    {showAttendance && <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 items-center gap-3">
           <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">02</span>
@@ -267,6 +272,6 @@ export default function Overview({ onCreateEmployee }: { onCreateEmployee: () =>
         </div>
       </> : <p role={shiftsBusy ? 'status' : undefined} className="border-t border-line px-7 py-12 text-center text-sm text-muted">{shiftsBusy ? 'Loading attendance records…' : shiftsError ? 'Attendance unavailable.' : 'No attendance records yet.'}</p>}
       <Pager label="Attendance" page={attendancePage} hasMore={shiftsMore} busy={shiftsBusy} go={page => { setShiftsBusy(true); setAttendancePage(page) }} />
-    </section>
+    </section>}
   </section>
 }
