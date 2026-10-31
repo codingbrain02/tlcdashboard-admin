@@ -265,6 +265,7 @@ function NavIcon({ name }: { name: DashboardTab }) {
 function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRecord; signOut: () => void; theme: Theme; toggleTheme: () => void }) {
   const [tab, setTab] = useState<DashboardTab>('overview')
   const [security, setSecurity] = useState(false)
+  const [passwordNotice, setPasswordNotice] = useState('')
   const isSuper = account.role === 'super_admin'
   const tabs: { id: DashboardTab; label: string }[] = isSuper
     ? [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create Employee' }, { id: 'administrators', label: 'Administrators' }, { id: 'activity', label: 'Activity Log' }]
@@ -291,6 +292,7 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
     <div className="min-w-0">
       <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-7 xl:px-10"><div className="min-w-0"><p className="text-[11px] font-semibold text-muted"><span className="hidden sm:inline">TLC Administration</span><span className="hidden px-2 text-line sm:inline">/</span><span className="text-ink">{pageTitle}</span></p></div><div className="flex shrink-0 items-center gap-2"><ThemeToggle theme={theme} toggle={toggleTheme} /><button type="button" onClick={signOut} className="min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Sign out</button></div></header>
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-7 sm:py-10 xl:px-10">
+        {passwordNotice && <Notice>{passwordNotice}</Notice>}
         {tab === 'activity' && isSuper ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading activity log…</p>}><ActivityLog /></Suspense> : tab === 'overview' ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading overview…</p>}><Overview onCreateEmployee={() => selectTab('create_employee')} /></Suspense> : tab === 'employees' ? <>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Team management</span><h1 className="mt-2 text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse your team and their current contact details.</p></div><button type="button" onClick={() => selectTab('create_employee')} className={button}>Create employee</button></div>
           <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employees…</p>}><Overview mode="employees" canEdit={isSuper} onCreateEmployee={() => selectTab('create_employee')} /></Suspense>
@@ -299,7 +301,7 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
           {tab === 'create_employee' ? <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]"><EmployeeForm /><aside className="relative overflow-hidden rounded-[26px] bg-[#20285c] p-6 text-white shadow-[0_16px_35px_-25px_rgba(26,32,77,.8)] sm:p-7 dark:bg-[#222c62]"><div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-[#6268ed]/25 blur-2xl" /><div className="relative"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-[#b9c1ff]">Onboarding</span><h2 className="mt-3 text-xl font-bold tracking-tight">From invite to first shift</h2><p className="mt-2 text-sm leading-6 text-white/70">A quick, secure path for every new teammate.</p><ol className="mt-7 space-y-5">{[['01', 'Add their details', 'Name, position, contact number and email.'], ['02', 'Share their access', 'A one-time password appears after creation.'], ['03', 'Let them get started', 'They set a new password before clocking in.']].map(([number, title, detail]) => <li key={number} className="flex gap-3.5"><span className="grid size-8 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/10 text-[11px] font-bold text-white/90">{number}</span><span><strong className="block text-sm font-semibold">{title}</strong><span className="mt-1 block text-xs leading-5 text-white/60">{detail}</span></span></li>)}</ol><div className="mt-8 rounded-2xl border border-white/15 bg-white/[.06] p-4 text-xs leading-5 text-white/75">Keep temporary passwords private. Employees must change theirs at first sign-in.</div></div></aside></div> : isSuper ? <AdminForm /> : null}
         </>}
       </main>
-      {security && <PasswordSettings onChanged={signOut} onClose={() => setSecurity(false)} />}
+      {security && <PasswordSettings onChanged={() => setPasswordNotice('Password changed successfully. You’re still signed in.')} onClose={() => setSecurity(false)} />}
     </div>
   </div>
 }
@@ -308,6 +310,7 @@ export default function AdminApp() {
   const [theme, setTheme] = useState<Theme>(loadTheme)
   const [user, setUser] = useState<User | null | undefined>(supabase ? undefined : null)
   const [account, setAccount] = useState<AdminRecord | null | undefined>(undefined)
+  const [accountVersion, setAccountVersion] = useState(0)
   const [accessError, setAccessError] = useState('')
   const [logoutError, setLogoutError] = useState('')
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem('tlc-admin-theme', theme) } catch { /* optional */ } }, [theme])
@@ -364,7 +367,7 @@ export default function AdminApp() {
     const interval = window.setInterval(visibleRefresh, 15000)
     window.addEventListener('focus', visibleRefresh)
     return () => { mounted = false; window.clearInterval(interval); window.removeEventListener('focus', visibleRefresh) }
-  }, [userId])
+  }, [userId, accountVersion])
   async function signOut() {
     if (!supabase) return
     setLogoutError('')
@@ -380,5 +383,5 @@ export default function AdminApp() {
     {logoutError && <p role="alert" className="fixed right-4 bottom-4 z-30 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 shadow-lg dark:bg-rose-950 dark:text-rose-100">{logoutError}</p>}
     <Dashboard account={account} signOut={() => void signOut()} theme={theme} toggleTheme={toggleTheme} />
   </>
-  return <div className="min-h-screen bg-page font-sans text-ink"><header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#4f4ff1] text-xs font-extrabold text-white">TLC</span><strong className="text-sm">Tech Live Connect <span className="block text-xs font-normal text-muted">Administration</span></strong></div><ThemeToggle theme={theme} toggle={toggleTheme} /></header>{user === undefined ? <p role="status" className="p-10 text-center text-sm text-muted">Checking session…</p> : !user ? <Login onLogin={verified => { setAccount(undefined); setUser(verified) }} /> : account === undefined || (account !== null && account.id !== user.id) ? <p role="status" className="p-10 text-center text-sm text-muted">Checking administrator access…</p> : !account ? <main className="mx-auto max-w-md px-5 py-16 text-center"><h1 className="text-2xl font-bold">Administrator access required</h1><p className="mt-3 text-sm text-muted">{accessError || 'This account has no administrator role yet.'}</p><button type="button" onClick={() => void signOut()} className={button + ' mt-6'}>Sign out</button></main> : <ChangePassword onDone={() => void signOut()} onSignOut={() => void signOut()} />}</div>
+  return <div className="min-h-screen bg-page font-sans text-ink"><header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#4f4ff1] text-xs font-extrabold text-white">TLC</span><strong className="text-sm">Tech Live Connect <span className="block text-xs font-normal text-muted">Administration</span></strong></div><ThemeToggle theme={theme} toggle={toggleTheme} /></header>{user === undefined ? <p role="status" className="p-10 text-center text-sm text-muted">Checking session…</p> : !user ? <Login onLogin={verified => { setAccount(undefined); setUser(verified) }} /> : account === undefined || (account !== null && account.id !== user.id) ? <p role="status" className="p-10 text-center text-sm text-muted">Checking administrator access…</p> : !account ? <main className="mx-auto max-w-md px-5 py-16 text-center"><h1 className="text-2xl font-bold">Administrator access required</h1><p className="mt-3 text-sm text-muted">{accessError || 'This account has no administrator role yet.'}</p><button type="button" onClick={() => void signOut()} className={button + ' mt-6'}>Sign out</button></main> : <ChangePassword onDone={() => setAccountVersion(value => value + 1)} onSignOut={() => void signOut()} />}</div>
 }
