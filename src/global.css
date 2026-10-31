@@ -111,6 +111,12 @@
 
 #root { min-height: 100vh; }
 
+.emoji-avatar {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-weight: normal;
+  line-height: 1;
+}
+
 #root > .bg-page {
   background-image: radial-gradient(ellipse at 82% 0%, color-mix(in srgb, var(--app-brand) 5%, transparent), transparent 44%);
 }

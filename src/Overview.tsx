@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { formatPhoneNumberIntl } from 'react-phone-number-input'
 import { supabase } from './supabase'
 import { positionGroups } from './positions'
+import EmojiAvatar from './EmojiAvatar'
 
 const EmployeeDetail = lazy(() => import('./EmployeeDetail'))
 
@@ -13,6 +14,7 @@ type Employee = {
   phone_number: string | null
   is_active: boolean
   terminated_at: string | null
+  avatar_emoji: string
 }
 type Shift = {
   id: string
@@ -29,11 +31,6 @@ function localDate(value: string) {
 
 function localTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(value))
-}
-
-function initials(value: string | null | undefined) {
-  const names = (value || '').trim().split(/\s+/).filter(Boolean)
-  return (names.length > 1 ? names[0][0] + names[names.length - 1][0] : names[0]?.slice(0, 2) || '?').toLocaleUpperCase()
 }
 
 function DateStamp({ value }: { value: string | null }) {
@@ -270,7 +267,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         <ul className="divide-y divide-line border-t border-line lg:hidden">
           {employees.map(employee => <li key={employee.id} className="px-5 py-4 sm:px-7">
             <div className="flex items-start gap-3">
-              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span>
+              <EmojiAvatar value={employee.avatar_emoji} className="size-10 bg-brand/10 text-2xl" />
               <div className="min-w-0 flex-1">
                 <strong className="block text-sm font-semibold leading-5">{employee.full_name || 'Unnamed'}</strong>
                 <span className="mt-1 block break-all text-xs text-muted">{employee.email}</span>
@@ -291,7 +288,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
             </thead>
             <tbody className="divide-y divide-line">
               {employees.map(employee => <tr key={employee.id} className="transition-colors hover:bg-soft">
-                <td className="px-7 py-4"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span><div className="min-w-0"><strong className="block font-semibold">{employee.full_name || 'Unnamed'}</strong><span className="block break-all text-xs text-muted">{employee.email}</span></div></div></td>
+                <td className="px-7 py-4"><div className="flex items-center gap-3"><EmojiAvatar value={employee.avatar_emoji} className="size-10 bg-brand/10 text-2xl" /><div className="min-w-0"><strong className="block font-semibold">{employee.full_name || 'Unnamed'}</strong><span className="block break-all text-xs text-muted">{employee.email}</span></div></div></td>
                 <td className="px-4 py-4">{employee.position || '—'}</td>
                 <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
                 <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText={employee.terminated_at ? 'Terminated' : 'Inactive'} /></td>
