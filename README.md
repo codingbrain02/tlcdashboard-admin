@@ -10,6 +10,8 @@ Run `npm install`, `npm run dev`, `npm run lint`, and `npm run build` from this 
 
 Vercel deployments use `vercel.json` to send security and no-index headers. Its Content Security Policy permits connections to Supabase's `*.supabase.co` domains; add any future custom Supabase domain to `connect-src` before deploying with that domain. Vite's local dev and preview servers do not apply Vercel response headers.
 
+Employee profiles include confirmed Terminate, Reverse termination, and Rehire controls for both admin roles. Termination stops a running shift and disables account access; restoration requires the employee to sign in again. Only the Super Administrator can edit work details, sign-in email, registration/employment dates and existing attendance, or open Activity Log. Changes show a before/after review and are recorded by the server. Apply the parent lifecycle migration and deploy the updated `admin-api` before releasing this frontend.
+
 ---
 
 ## Original Vite template notes (not app setup instructions)

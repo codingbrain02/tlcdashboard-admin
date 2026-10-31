@@ -5,6 +5,7 @@ import { positionGroups } from './positions'
 
 const Overview = lazy(() => import('./Overview'))
 const CountryPhoneInput = lazy(() => import('./CountryPhoneInput'))
+const ActivityLog = lazy(() => import('./ActivityLog'))
 
 type Theme = 'light' | 'dark'
 type AdminRecord = {
@@ -244,7 +245,7 @@ function AdminForm() {
   </div>
 }
 
-type DashboardTab = 'overview' | 'employees' | 'create_employee' | 'administrators'
+type DashboardTab = 'overview' | 'employees' | 'create_employee' | 'administrators' | 'activity'
 
 function NavIcon({ name }: { name: DashboardTab }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-[18px] shrink-0">
@@ -259,9 +260,9 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
   const [tab, setTab] = useState<DashboardTab>('overview')
   const isSuper = account.role === 'super_admin'
   const tabs: { id: DashboardTab; label: string }[] = isSuper
-    ? [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create Employee' }, { id: 'administrators', label: 'Administrators' }]
+    ? [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create Employee' }, { id: 'administrators', label: 'Administrators' }, { id: 'activity', label: 'Activity Log' }]
     : [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create Employee' }]
-  const pageTitle = tab === 'overview' ? 'Overview' : tab === 'employees' ? 'Employees' : tab === 'create_employee' ? 'Create Employee' : 'Administrators'
+  const pageTitle = tab === 'activity' ? 'Activity Log' : tab === 'overview' ? 'Overview' : tab === 'employees' ? 'Employees' : tab === 'create_employee' ? 'Create Employee' : 'Administrators'
   const displayRole = isSuper ? 'Super Administrator' : account.username
   const selectTab = (next: DashboardTab) => { setTab(next); window.scrollTo(0, 0) }
 
@@ -275,7 +276,7 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
     <div className="min-w-0">
       <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-7 xl:px-10"><div className="min-w-0"><p className="text-[11px] font-semibold text-muted"><span className="hidden sm:inline">TLC Administration</span><span className="hidden px-2 text-line sm:inline">/</span><span className="text-ink">{pageTitle}</span></p></div><div className="flex shrink-0 items-center gap-2"><ThemeToggle theme={theme} toggle={toggleTheme} /><button type="button" onClick={signOut} className="min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Sign out</button></div></header>
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-7 sm:py-10 xl:px-10">
-        {tab === 'overview' ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading overview…</p>}><Overview onCreateEmployee={() => selectTab('create_employee')} /></Suspense> : tab === 'employees' ? <>
+        {tab === 'activity' && isSuper ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading activity log…</p>}><ActivityLog /></Suspense> : tab === 'overview' ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading overview…</p>}><Overview onCreateEmployee={() => selectTab('create_employee')} /></Suspense> : tab === 'employees' ? <>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Team management</span><h1 className="mt-2 text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse your team and their current contact details.</p></div><button type="button" onClick={() => selectTab('create_employee')} className={button}>Create employee</button></div>
           <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employees…</p>}><Overview mode="employees" canEdit={isSuper} onCreateEmployee={() => selectTab('create_employee')} /></Suspense>
         </> : <>

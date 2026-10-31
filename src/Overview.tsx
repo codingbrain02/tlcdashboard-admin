@@ -12,6 +12,7 @@ type Employee = {
   position: string | null
   phone_number: string | null
   is_active: boolean
+  terminated_at: string | null
 }
 type Shift = {
   id: string
@@ -19,6 +20,7 @@ type Shift = {
   full_name: string
   clock_in: string
   clock_out: string | null
+  end_reason: 'clock_out' | 'terminated'
 }
 
 function localDate(value: string) {
@@ -47,7 +49,7 @@ function StatusBadge({ active, activeText, inactiveText }: {
 }) {
   return <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ' + (active
     ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300'
-    : 'bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300')}>
+    : inactiveText === 'Terminated' ? 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300')}>
     <span aria-hidden="true" className={'size-1.5 rounded-full ' + (active ? 'bg-emerald-500' : 'bg-slate-400')} />
     {active ? activeText : inactiveText}
   </span>
@@ -214,7 +216,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
             <span role="status" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
               <span aria-hidden="true" className={'size-2 rounded-full ' + (live ? 'bg-emerald-300' : 'bg-amber-300')} />
-              {live ? 'Live updates connected' : 'Reconnecting · checks every 30 seconds'}
+              {live ? 'Live updates connected' : 'Reconnecting · checks every 60 seconds'}
             </span>
             <span className="text-xs text-white/75">Times shown in your device’s time zone</span>
           </div>
@@ -255,7 +257,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
           <datalist id="employee-position-options">{positionGroups.flatMap(group => group.positions).map(position => <option key={position} value={position} />)}</datalist>
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Status
-          <select value={employeeStatus} onChange={event => { setEmployeeStatus(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="all">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+          <select value={employeeStatus} onChange={event => { setEmployeeStatus(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="all">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select>
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Sort by
           <select value={employeeSort} onChange={event => { setEmployeeSort(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="newest">Newest added</option><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="position-asc">Position A–Z</option><option value="position-desc">Position Z–A</option></select>
@@ -273,7 +275,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
                 <strong className="block text-sm font-semibold leading-5">{employee.full_name || 'Unnamed'}</strong>
                 <span className="mt-1 block break-all text-xs text-muted">{employee.email}</span>
               </div>
-              <StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" />
+              <StatusBadge active={employee.is_active} activeText="Active" inactiveText={employee.terminated_at ? 'Terminated' : 'Inactive'} />
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 pl-[52px] text-xs">
               <div className="min-w-0"><dt className="text-muted">Position</dt><dd className="mt-1 break-words font-medium">{employee.position || '—'}</dd></div>
@@ -285,14 +287,14 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         <div className="hidden overflow-x-auto border-t border-line lg:block">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
-              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-7 py-3">Details</th></tr>
+              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-4 py-3">Account status</th><th scope="col" className="px-7 py-3">Details</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {employees.map(employee => <tr key={employee.id} className="transition-colors hover:bg-soft">
                 <td className="px-7 py-4"><div className="flex items-center gap-3"><span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-bold text-brand">{initials(employee.full_name)}</span><div className="min-w-0"><strong className="block font-semibold">{employee.full_name || 'Unnamed'}</strong><span className="block break-all text-xs text-muted">{employee.email}</span></div></div></td>
                 <td className="px-4 py-4">{employee.position || '—'}</td>
                 <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
-                <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText="Inactive" /></td>
+                <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText={employee.terminated_at ? 'Terminated' : 'Inactive'} /></td>
                 <td className="px-7 py-4"><button type="button" onClick={() => setSelectedEmployeeId(employee.id)} className="min-h-9 rounded-lg border border-line px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile</button></td>
               </tr>)}
             </tbody>
@@ -320,25 +322,25 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
           {shifts.map(shift => <li key={shift.id} className="px-5 py-4 sm:px-7">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong className="text-sm font-semibold">{shift.full_name || 'Unnamed'}</strong>
-              <StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText="Completed" />
+              <StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText={shift.end_reason === 'terminated' ? 'Terminated' : 'Completed'} />
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div><dt className="mb-1 text-muted">Clock in</dt><dd><DateStamp value={shift.clock_in} /></dd></div>
-              <div><dt className="mb-1 text-muted">Clock out</dt><dd><DateStamp value={shift.clock_out} /></dd></div>
+              <div><dt className="mb-1 text-muted">End time</dt><dd><DateStamp value={shift.clock_out} /></dd></div>
             </dl>
           </li>)}
         </ul>
         <div className="hidden overflow-x-auto border-t border-line lg:block">
           <table className="w-full min-w-[680px] text-left text-sm">
             <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
-              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Clock in</th><th scope="col" className="px-4 py-3">Clock out</th><th scope="col" className="px-7 py-3">Status</th></tr>
+              <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Clock in</th><th scope="col" className="px-4 py-3">End time</th><th scope="col" className="px-7 py-3">Status</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {shifts.map(shift => <tr key={shift.id} className="transition-colors hover:bg-soft">
                 <td className="px-7 py-4 font-semibold">{shift.full_name || 'Unnamed'}</td>
                 <td className="px-4 py-4"><DateStamp value={shift.clock_in} /></td>
                 <td className="px-4 py-4"><DateStamp value={shift.clock_out} /></td>
-                <td className="px-7 py-4"><StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText="Completed" /></td>
+                <td className="px-7 py-4"><StatusBadge active={!shift.clock_out} activeText="On duty" inactiveText={shift.end_reason === 'terminated' ? 'Terminated' : 'Completed'} /></td>
               </tr>)}
             </tbody>
           </table>
