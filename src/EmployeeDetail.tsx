@@ -4,6 +4,7 @@ import { positionGroups } from './positions'
 import { supabase } from './supabase'
 import EmployeeActions, { EmployeeEmailEditor } from './EmployeeActions'
 import AttendanceEditor from './AttendanceEditor'
+import PasswordReset from './PasswordReset'
 import ConfirmDialog, { ChangeReview } from './ConfirmDialog'
 import { employeeColumns, serviceMessage, type EmployeeProfile, type EmployeeShift as Shift } from './employeeTypes'
 
@@ -241,6 +242,7 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
         </>}
         {canEdit && !editing && <EmployeeEmailEditor key={profile.email} profile={profile} onChanged={refreshEmployee} />}
         <EmployeeActions profile={profile} onChanged={refreshEmployee} />
+        {canEdit && <PasswordReset key={profile.id} targetId={profile.id} name={profile.full_name} />}
       </div>}
     </section>
 

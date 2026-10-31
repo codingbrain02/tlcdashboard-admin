@@ -1,5 +1,11 @@
 # TLC Administrator App
 
+## Password controls
+
+The password release also requires parent migration `202611010004_auth_password_transaction_order.sql`, which follows Supabase Auth's separate metadata/password writes and preserves mandatory setup during automatic password rehashes.
+
+All administrators can use Change my password to change only their own password, with current-password verification. Only the Super Administrator sees Reset password in the administrator directory and employee profiles. Each reset requires confirmation and the Super Administrator's current password, generates a temporary password shown once, and requires the target to change it at next sign-in. Resets are recorded in Activity Log without passwords. Active attendance shifts are not stopped and terminated employees are not reactivated. Apply parent migration `202611010003_password_management.sql` and deploy `admin-api` before releasing the updated frontends.
+
 This admin app uses the same Supabase project as the employee app; it does not need a second database. Follow the [project setup guide](../README.md) before signing in. The first Super Administrator signs in with `codingbrain02@gmail.com`; other admins use a unique username and password. Account creation and temporary passwords are handled by the server-side `admin-api` Edge Function.
 
 Both administrator roles can view employee records and attendance and can create employee accounts. Only the Super Administrator can view and create administrator accounts. Regular administrators cannot read other administrator profiles or administrator attendance, including the Super Administrator's personal details. Apply the parent project's migrations and deploy its `admin-api` function before deploying this frontend.

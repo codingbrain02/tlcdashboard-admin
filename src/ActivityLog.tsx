@@ -6,6 +6,7 @@ type Activity = {
   occurred_at: string; before_data: Record<string, unknown>; after_data: Record<string, unknown>
 }
 const actions: Record<string, string> = {
+  'reset-password': 'Reset account password',
   'create-employee': 'Created employee', terminate: 'Terminated employee', 'reverse-termination': 'Reversed termination',
   rehire: 'Rehired employee', 'update-profile': 'Edited employee details', 'update-attendance': 'Corrected attendance',
   'email-change-requested': 'Requested email change', 'email-changed': 'Changed employee email', 'email-change-failed': 'Email change failed',

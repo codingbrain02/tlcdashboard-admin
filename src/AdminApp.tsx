@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type 
 import type { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { positionGroups } from './positions'
+import PasswordSettings from './PasswordSettings'
+import PasswordReset from './PasswordReset'
 
 const Overview = lazy(() => import('./Overview'))
 const CountryPhoneInput = lazy(() => import('./CountryPhoneInput'))
@@ -239,7 +241,11 @@ function AdminForm() {
     <aside className="min-w-0 rounded-[26px] border border-line bg-surface p-5 shadow-[0_14px_38px_-28px_rgba(34,38,66,.45)] sm:p-7">
       <div className="flex items-center justify-between gap-3"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Directory</span><h2 className="mt-2 text-xl font-bold tracking-tight">Administrators</h2></div><span className="rounded-full bg-soft px-3 py-1.5 text-xs font-bold text-muted">{directory.length} total</span></div>
       {directoryError && <Notice bad>{directoryError}</Notice>}
-      <ul className="mt-5 space-y-2.5">{directory.map(entry => <li key={entry.id} className="flex items-center gap-3 rounded-2xl border border-line bg-soft px-3.5 py-3"><span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">{entry.role === 'super_admin' ? 'SA' : entry.username.slice(0, 2).toUpperCase()}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{entry.role === 'super_admin' ? 'Super Administrator' : entry.username}</strong><span className="mt-0.5 block text-xs text-muted">{entry.role === 'super_admin' ? 'Account owner' : 'Administrator'}</span></span><span className={'size-2 shrink-0 rounded-full ' + (entry.must_change_password ? 'bg-amber-500' : 'bg-emerald-500')} title={entry.must_change_password ? 'Password change pending' : 'Active'}><span className="sr-only">{entry.must_change_password ? 'Password change pending' : 'Active'}</span></span></li>)}</ul>
+      <ul className="mt-5 space-y-2.5">{directory.map(entry => <li key={entry.id} className="rounded-2xl border border-line bg-soft p-4">
+        <strong className="block break-all text-sm">{entry.role === 'super_admin' ? 'Super Administrator' : entry.username}</strong>
+        <span className="mt-1 block text-xs text-muted">{entry.must_change_password ? 'Password change pending' : 'Active'}</span>
+        {entry.role === 'admin' && <PasswordReset targetId={entry.id} name={entry.username} />}
+      </li>)}</ul>
       {!directory.length && !directoryError && <p className="mt-5 rounded-2xl border border-dashed border-line p-5 text-sm text-muted">No administrators to show yet.</p>}
     </aside>
   </div>
@@ -258,6 +264,7 @@ function NavIcon({ name }: { name: DashboardTab }) {
 
 function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRecord; signOut: () => void; theme: Theme; toggleTheme: () => void }) {
   const [tab, setTab] = useState<DashboardTab>('overview')
+  const [security, setSecurity] = useState(false)
   const isSuper = account.role === 'super_admin'
   const tabs: { id: DashboardTab; label: string }[] = isSuper
     ? [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create Employee' }, { id: 'administrators', label: 'Administrators' }, { id: 'activity', label: 'Activity Log' }]
@@ -276,6 +283,8 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
     <div className="min-w-0">
       <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-7 xl:px-10"><div className="min-w-0"><p className="text-[11px] font-semibold text-muted"><span className="hidden sm:inline">TLC Administration</span><span className="hidden px-2 text-line sm:inline">/</span><span className="text-ink">{pageTitle}</span></p></div><div className="flex shrink-0 items-center gap-2"><ThemeToggle theme={theme} toggle={toggleTheme} /><button type="button" onClick={signOut} className="min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Sign out</button></div></header>
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-7 sm:py-10 xl:px-10">
+        <div className="mb-5 flex justify-end"><button type="button" onClick={() => setSecurity(value => !value)} className="min-h-10 rounded-xl border border-line px-4 text-sm font-semibold text-brand hover:bg-soft" aria-expanded={security}>{security ? 'Close password settings' : 'Change my password'}</button></div>
+        {security && <div className="mb-7"><PasswordSettings onChanged={signOut} /></div>}
         {tab === 'activity' && isSuper ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading activity log…</p>}><ActivityLog /></Suspense> : tab === 'overview' ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading overview…</p>}><Overview onCreateEmployee={() => selectTab('create_employee')} /></Suspense> : tab === 'employees' ? <>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Team management</span><h1 className="mt-2 text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse your team and their current contact details.</p></div><button type="button" onClick={() => selectTab('create_employee')} className={button}>Create employee</button></div>
           <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employees…</p>}><Overview mode="employees" canEdit={isSuper} onCreateEmployee={() => selectTab('create_employee')} /></Suspense>
@@ -329,10 +338,25 @@ export default function AdminApp() {
     if (!supabase || !userId) return
     const client = supabase
     let mounted = true
-    void client.from('admin_users').select('id,username,role,must_change_password').eq('id', userId).maybeSingle().then(({ data, error }) => {
-      if (mounted) { setAccount(error ? null : data as AdminRecord | null); setAccessError(error ? 'Could not check administrator access.' : '') }
-    })
-    return () => { mounted = false }
+    const refresh = async () => {
+      const [record, allowed] = await Promise.all([
+        client.from('admin_users').select('id,username,role,must_change_password').eq('id', userId).maybeSingle(),
+        client.rpc('admin_session_allowed'),
+      ])
+      if (!mounted) return
+      if (!allowed.error && allowed.data !== true) {
+        setAccount(undefined); setUser(null)
+        void client.auth.signOut({ scope: 'local' })
+        return
+      }
+      if (record.error || allowed.error) { setAccessError('Could not check administrator access.'); return }
+      setAccount(record.data as AdminRecord | null); setAccessError('')
+    }
+    const visibleRefresh = () => { if (!document.hidden) void refresh() }
+    void refresh()
+    const interval = window.setInterval(visibleRefresh, 15000)
+    window.addEventListener('focus', visibleRefresh)
+    return () => { mounted = false; window.clearInterval(interval); window.removeEventListener('focus', visibleRefresh) }
   }, [userId])
   async function signOut() {
     if (!supabase) return
