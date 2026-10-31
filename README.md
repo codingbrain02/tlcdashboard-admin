@@ -8,6 +8,8 @@ Overview shows attendance activity. Employees lists employee accounts with live,
 
 Run `npm install`, `npm run dev`, `npm run lint`, and `npm run build` from this folder. The public Supabase URL and publishable key come from the parent project's `.env.local`. Never place a service key in a `VITE_` variable.
 
+Vercel deployments use `vercel.json` to send security and no-index headers. Its Content Security Policy permits connections to Supabase's `*.supabase.co` domains; add any future custom Supabase domain to `connect-src` before deploying with that domain. Vite's local dev and preview servers do not apply Vercel response headers.
+
 ---
 
 ## Original Vite template notes (not app setup instructions)

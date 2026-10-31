@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
-import PhoneInput from 'react-phone-number-input'
-import flags from 'react-phone-number-input/flags'
-import 'react-phone-number-input/style.css'
 import { supabase } from './supabase'
-import Overview from './Overview'
 import { positionGroups } from './positions'
+
+const Overview = lazy(() => import('./Overview'))
+const CountryPhoneInput = lazy(() => import('./CountryPhoneInput'))
 
 type Theme = 'light' | 'dark'
 type AdminRecord = {
@@ -159,7 +158,7 @@ function EmployeeForm() {
         </div>
         <div className="min-w-0">
           <label htmlFor="phone" className="mb-2 block text-sm font-semibold">Phone number</label>
-          <PhoneInput id="phone" required aria-describedby="phone-help" defaultCountry="PH" international countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} flags={flags} value={draft.phoneNumber || undefined} onChange={value => change('phoneNumber', value ?? '')} autoComplete="tel" placeholder="Enter phone number" countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink" />
+          <Suspense fallback={<p role="status" className="text-sm text-muted">Loading phone field…</p>}><CountryPhoneInput id="phone" required aria-describedby="phone-help" defaultCountry="PH" international countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} value={draft.phoneNumber || undefined} onChange={value => change('phoneNumber', value ?? '')} autoComplete="tel" placeholder="Enter phone number" countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink" /></Suspense>
           <p id="phone-help" className="mt-1.5 text-xs text-muted">Select a country, then enter the local number.</p>
         </div>
       </div>
@@ -184,16 +183,31 @@ function AdminForm() {
   useEffect(() => {
     if (!supabase) return
     const client = supabase
-    queueMicrotask(() => { void refresh() })
+    let connected = false
+    let hasConnected = false
+    let active = true
+    queueMicrotask(() => { if (active) void refresh() })
     const channel = client.channel('super-admin-directory')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_users' }, () => { void refresh() })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'admin_users' }, () => { void refresh() })
-      .subscribe(status => { if (status === 'SUBSCRIBED') void refresh() })
-    const interval = window.setInterval(() => { void refresh() }, 30_000)
+      .subscribe(status => {
+        if (!active) return
+        connected = status === 'SUBSCRIBED'
+        if (connected) {
+          if (hasConnected) void refresh()
+          hasConnected = true
+        }
+      })
+    let ticks = 0
+    const interval = window.setInterval(() => {
+      ticks += 1
+      if (document.visibilityState === 'visible' && (!connected || ticks % 5 === 0)) void refresh()
+    }, 60_000)
     const onFocus = () => { void refresh() }
     window.addEventListener('focus', onFocus)
     window.addEventListener('online', onFocus)
     return () => {
+      active = false
       window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
       window.removeEventListener('online', onFocus)
@@ -261,9 +275,9 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
     <div className="min-w-0">
       <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-7 xl:px-10"><div className="min-w-0"><p className="text-[11px] font-semibold text-muted"><span className="hidden sm:inline">TLC Administration</span><span className="hidden px-2 text-line sm:inline">/</span><span className="text-ink">{pageTitle}</span></p></div><div className="flex shrink-0 items-center gap-2"><ThemeToggle theme={theme} toggle={toggleTheme} /><button type="button" onClick={signOut} className="min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Sign out</button></div></header>
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-7 sm:py-10 xl:px-10">
-        {tab === 'overview' ? <Overview onCreateEmployee={() => selectTab('create_employee')} /> : tab === 'employees' ? <>
+        {tab === 'overview' ? <Suspense fallback={<p role="status" className="text-sm text-muted">Loading overview…</p>}><Overview onCreateEmployee={() => selectTab('create_employee')} /></Suspense> : tab === 'employees' ? <>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Team management</span><h1 className="mt-2 text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse your team and their current contact details.</p></div><button type="button" onClick={() => selectTab('create_employee')} className={button}>Create employee</button></div>
-          <Overview mode="employees" canEdit={isSuper} onCreateEmployee={() => selectTab('create_employee')} />
+          <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employees…</p>}><Overview mode="employees" canEdit={isSuper} onCreateEmployee={() => selectTab('create_employee')} /></Suspense>
         </> : <>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Team management</span><h1 className="mt-2 text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">{tab === 'create_employee' ? 'Create employee' : 'Administrator accounts'}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{tab === 'create_employee' ? 'Give a new teammate a secure start.' : 'Manage who can access the administration workspace.'}</p></div><span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-xs font-semibold text-muted"><span aria-hidden="true" className="size-2 rounded-full bg-emerald-500" />{displayRole}</span></div>
           {tab === 'create_employee' ? <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]"><EmployeeForm /><aside className="relative overflow-hidden rounded-[26px] bg-[#20285c] p-6 text-white shadow-[0_16px_35px_-25px_rgba(26,32,77,.8)] sm:p-7 dark:bg-[#222c62]"><div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-[#6268ed]/25 blur-2xl" /><div className="relative"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-[#b9c1ff]">Onboarding</span><h2 className="mt-3 text-xl font-bold tracking-tight">From invite to first shift</h2><p className="mt-2 text-sm leading-6 text-white/70">A quick, secure path for every new teammate.</p><ol className="mt-7 space-y-5">{[['01', 'Add their details', 'Name, position, contact number and email.'], ['02', 'Share their access', 'A one-time password appears after creation.'], ['03', 'Let them get started', 'They set a new password before clocking in.']].map(([number, title, detail]) => <li key={number} className="flex gap-3.5"><span className="grid size-8 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/10 text-[11px] font-bold text-white/90">{number}</span><span><strong className="block text-sm font-semibold">{title}</strong><span className="mt-1 block text-xs leading-5 text-white/60">{detail}</span></span></li>)}</ol><div className="mt-8 rounded-2xl border border-white/15 bg-white/[.06] p-4 text-xs leading-5 text-white/75">Keep temporary passwords private. Employees must change theirs at first sign-in.</div></div></aside></div> : isSuper ? <AdminForm /> : null}

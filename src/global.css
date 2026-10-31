@@ -133,4 +133,4 @@
 .phone-field .PhoneInputInput::placeholder { color: var(--app-muted); }
 .phone-field .PhoneInputCountry { flex-shrink: 0; margin-right: 0.75rem; }
 .phone-field .PhoneInputCountry:focus-within { border-radius: 0.25rem; outline: 2px solid var(--app-brand); outline-offset: 2px; }
-.phone-field .PhoneInputCountryIcon { overflow: hidden; border-radius: 0.2rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-ink) 15%, transparent); }
+.phone-field .PhoneInputCountryIcon { display: grid; place-items: center; overflow: hidden; border-radius: 0.2rem; box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-ink) 15%, transparent); }

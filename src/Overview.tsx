@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { formatPhoneNumberIntl } from 'react-phone-number-input'
 import { supabase } from './supabase'
-import EmployeeDetail from './EmployeeDetail'
 import { positionGroups } from './positions'
+
+const EmployeeDetail = lazy(() => import('./EmployeeDetail'))
 
 type Employee = {
   id: string
@@ -106,6 +107,9 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
       window.clearTimeout(employeeDebounce)
       employeeDebounce = window.setTimeout(refreshEmployees, 250)
     }
+    let connected = false
+    let hasConnected = false
+    let active = true
     const channel = client.channel(showAttendance ? 'admin-overview' : 'admin-employees')
     if (showEmployees) channel
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
@@ -114,13 +118,23 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
     channel.subscribe(status => {
-      setLive(status === 'SUBSCRIBED')
-      if (status === 'SUBSCRIBED') refreshAll()
+      if (!active) return
+      connected = status === 'SUBSCRIBED'
+      setLive(connected)
+      if (connected) {
+        if (hasConnected) refreshAll()
+        hasConnected = true
+      }
     })
-    const interval = window.setInterval(refreshAll, 30_000)
+    let ticks = 0
+    const interval = window.setInterval(() => {
+      ticks += 1
+      if (document.visibilityState === 'visible' && (!connected || ticks % 5 === 0)) refreshAll()
+    }, 60_000)
     window.addEventListener('focus', refreshAll)
     window.addEventListener('online', refreshAll)
     return () => {
+      active = false
       window.clearTimeout(attendanceDebounce)
       window.clearTimeout(employeeDebounce)
       window.clearInterval(interval)
@@ -185,7 +199,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   }
 
   if (showEmployees && selectedEmployeeId) {
-    return <EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => setSelectedEmployeeId(null)} />
+    return <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employee details…</p>}><EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => setSelectedEmployeeId(null)} /></Suspense>
   }
 
   return <section id={showAttendance ? 'overview' : 'employees'} aria-labelledby={showAttendance ? 'overview-heading' : 'employees-heading'} className="space-y-6 text-ink">

@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import PhoneInput, { formatPhoneNumberIntl } from 'react-phone-number-input'
-import flags from 'react-phone-number-input/flags'
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
+import { formatPhoneNumberIntl } from 'react-phone-number-input'
 import { positionGroups } from './positions'
 import { supabase } from './supabase'
+
+const CountryPhoneInput = lazy(() => import('./CountryPhoneInput'))
 
 type EmployeeProfile = {
   id: string
@@ -108,15 +109,30 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
       setHistoryVersion(value => value + 1)
     }
     const refreshAll = () => { refreshProfile(); refreshHistory() }
+    let connected = false
+    let hasConnected = false
+    let active = true
     const channel = client.channel(`admin-employee-detail-${employeeId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employee_profiles', filter: `id=eq.${employeeId}` }, refreshProfile)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance', filter: `user_id=eq.${employeeId}` }, refreshHistoryFromTop)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance', filter: `user_id=eq.${employeeId}` }, refreshHistoryFromTop)
-      .subscribe()
-    const interval = window.setInterval(refreshAll, 30_000)
+      .subscribe(status => {
+        if (!active) return
+        connected = status === 'SUBSCRIBED'
+        if (connected) {
+          if (hasConnected) refreshAll()
+          hasConnected = true
+        }
+      })
+    let ticks = 0
+    const interval = window.setInterval(() => {
+      ticks += 1
+      if (document.visibilityState === 'visible' && (!connected || ticks % 5 === 0)) refreshAll()
+    }, 60_000)
     window.addEventListener('focus', refreshAll)
     window.addEventListener('online', refreshAll)
     return () => {
+      active = false
       window.clearInterval(interval)
       window.removeEventListener('focus', refreshAll)
       window.removeEventListener('online', refreshAll)
@@ -176,7 +192,7 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
           <div className="grid gap-5 sm:grid-cols-2">
             <div><label htmlFor="edit-full-name" className="mb-2 block text-sm font-semibold">Full name</label><input id="edit-full-name" required maxLength={120} value={fullName} onChange={event => setFullName(event.target.value)} className={input} /></div>
             <div><label htmlFor="edit-position" className="mb-2 block text-sm font-semibold">Position</label><select id="edit-position" required value={positionChoice} onChange={event => setPositionChoice(event.target.value)} className={input}><option value="" disabled>Select a position</option>{positionGroups.map(group => <optgroup key={group.label} label={group.label}>{group.positions.map(position => <option key={position} value={position}>{position}</option>)}</optgroup>)}<option value="Other">Other / custom position</option></select>{positionChoice === 'Other' && <input aria-label="Custom position" required maxLength={120} value={otherPosition} onChange={event => setOtherPosition(event.target.value)} className={input + ' mt-2'} placeholder="Enter position" />}</div>
-            <div className="sm:col-span-2"><label htmlFor="edit-phone" className="mb-2 block text-sm font-semibold">Phone number</label><PhoneInput id="edit-phone" required international defaultCountry="PH" countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} flags={flags} value={phoneNumber || undefined} onChange={value => setPhoneNumber(value ?? '')} countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink" /></div>
+            <div className="sm:col-span-2"><label htmlFor="edit-phone" className="mb-2 block text-sm font-semibold">Phone number</label><Suspense fallback={<p role="status" className="text-sm text-muted">Loading phone field…</p>}><CountryPhoneInput id="edit-phone" required international defaultCountry="PH" countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} value={phoneNumber || undefined} onChange={value => setPhoneNumber(value ?? '')} countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink" /></Suspense></div>
           </div>
           <p className="text-xs leading-5 text-muted">Email is a sign-in credential and is managed by the employee. User ID, registration date and account status cannot be edited here.</p>
           {saveError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200">{saveError}</p>}
