@@ -69,13 +69,17 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
     if (!supabase) return
     const client = supabase
     let current = true
-    void client.from('employee_profiles')
+    void Promise.resolve(client.from('employee_profiles')
       .select(employeeColumns)
-      .eq('id', employeeId).maybeSingle()
+      .eq('id', employeeId).maybeSingle())
       .then(({ data, error }) => {
         if (!current) return
-        setProfile(error ? null : data as EmployeeProfile | null)
+        if (!error) setProfile(data as EmployeeProfile | null)
         setProfileError(error ? 'Could not load this employee profile.' : data ? '' : 'Employee not found.')
+        setProfileLoading(false)
+      }).catch(() => {
+        if (!current) return
+        setProfileError('Could not reach the profile service. Please retry.')
         setProfileLoading(false)
       })
     return () => { current = false }
@@ -85,23 +89,23 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
     if (!supabase) return
     const client = supabase
     let current = true
-    void client.from('attendance')
+    void Promise.resolve(client.from('attendance')
       .select('id,clock_in,clock_out,end_reason', { count: 'exact' })
       .eq('user_id', employeeId)
       .order('clock_in', { ascending: false })
-      .range(historyPage * pageSize, (historyPage + 1) * pageSize - 1)
+      .range(historyPage * pageSize, (historyPage + 1) * pageSize - 1))
       .then(({ data, count, error }) => {
         if (!current) return
         if (error) setHistoryError('Could not load this employee’s attendance.')
         else {
-          const records = data as Shift[]
+          const records = (data ?? []) as Shift[]
           setShifts(previous => historyPage === 0 ? records : [...new Map([...previous, ...records].map(record => [record.id, record])).values()])
           setTotal(count ?? 0)
           setHasMore((count ?? 0) > (historyPage + 1) * pageSize)
           setHistoryError('')
         }
-        setHistoryBusy(false)
-      })
+      }).catch(() => { if (current) setHistoryError('Could not reach attendance records. Please retry.') })
+      .finally(() => { if (current) setHistoryBusy(false) })
     return () => { current = false }
   }, [employeeId, historyPage, historyVersion])
 
@@ -212,10 +216,10 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
     <button type="button" onClick={onBack} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand"><span aria-hidden="true">←</span> All employees</button>
     <section className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line bg-soft/60 px-5 py-6 sm:px-7">
-        <div className="flex min-w-0 items-center gap-4">{profile && <EmojiAvatar value={profile.avatar_emoji} className="size-14 bg-brand/10 text-3xl" />}<div className="min-w-0"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Employee profile</span><h1 className="mt-2 break-words text-2xl font-bold tracking-tight">{profile?.full_name || (profileLoading ? 'Loading employee…' : 'Employee')}</h1><p className="mt-1 text-sm text-muted">Contact details and account information</p></div></div>
-        <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-muted">{canEdit ? 'Super Administrator' : 'Administrator'}</span>
+        <div className="flex min-w-0 items-center gap-4">{profile && <EmojiAvatar value={profile.avatar_emoji} className="size-14 bg-brand/10 text-3xl" />}<div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight">{profile?.full_name || (profileLoading ? 'Loading employee…' : 'Employee')}</h1><p className="mt-1 text-sm text-muted">Employee profile and contact details</p></div></div>
+        {profile && <span className={'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ' + (profile.terminated_at ? 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-200' : profile.is_active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200' : 'bg-soft text-muted')}><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{profile.terminated_at ? 'Terminated' : profile.is_active ? 'Active account' : 'Inactive account'}</span>}
       </div>
-      {profileError && <p role="alert" className="mx-5 mt-5 rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200 sm:mx-7">{profileError}</p>}
+      {profileError && <p role="alert" className="mx-5 mt-5 rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200 sm:mx-7">{profileError} <button type="button" aria-label="Retry employee profile" onClick={() => setProfileVersion(value => value + 1)} className="font-semibold underline underline-offset-2">Retry</button></p>}
       {saveNotice && <p role="status" className="mx-5 mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200 sm:mx-7">{saveNotice}</p>}
       {profile && <div className="p-5 sm:p-7">
         {editing ? <form onSubmit={save} className="space-y-5">

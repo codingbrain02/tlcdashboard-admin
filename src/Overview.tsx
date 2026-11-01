@@ -65,10 +65,13 @@ function Pager({ page, hasMore, busy, go, label }: {
   </nav>
 }
 
-export default function Overview({ onCreateEmployee, mode = 'overview', canEdit = false }: { onCreateEmployee: () => void; mode?: 'overview' | 'employees'; canEdit?: boolean }) {
+export default function Overview({ onCreateEmployee, mode = 'overview', canEdit = false, selectedEmployeeId = null, onSelectEmployee, refreshVersion = 0, onRefreshed }: {
+  onCreateEmployee: () => void; mode?: 'overview' | 'employees'; canEdit?: boolean
+  selectedEmployeeId?: string | null; onSelectEmployee?: (id: string | null) => void
+  refreshVersion?: number; onRefreshed?: () => void
+}) {
   const showAttendance = mode === 'overview'
   const showEmployees = mode === 'employees'
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [employeePage, setEmployeePage] = useState(0)
   const [nameSearch, setNameSearch] = useState('')
   const [positionSearch, setPositionSearch] = useState('')
@@ -180,9 +183,9 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         if (result.error || !Array.isArray(result.data?.shifts)) setShiftsError('Could not load attendance.')
         else { setShifts(result.data.shifts); setShiftsMore(Boolean(result.data.hasMore)); setShiftsError('') }
       }).catch(() => { if (live) setShiftsError('Could not load attendance.') })
-      .finally(() => { if (live) setShiftsBusy(false) })
+      .finally(() => { if (live) { setShiftsBusy(false); onRefreshed?.() } })
     return () => { live = false }
-  }, [attendancePage, attendanceRefresh, showAttendance])
+  }, [attendancePage, attendanceRefresh, showAttendance, refreshVersion, onRefreshed])
 
   const activeShifts = shifts.filter(shift => !shift.clock_out).length
   const employeeFiltersActive = Boolean(nameSearch || positionSearch || employeeStatus !== 'all' || employeeSort !== 'newest')
@@ -198,18 +201,18 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   }
 
   if (showEmployees && selectedEmployeeId) {
-    return <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employee details…</p>}><EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => setSelectedEmployeeId(null)} /></Suspense>
+    return <Suspense fallback={<p role="status" className="text-sm text-muted">Loading employee details…</p>}><EmployeeDetail key={selectedEmployeeId} employeeId={selectedEmployeeId} canEdit={canEdit} onBack={() => onSelectEmployee?.(null)} /></Suspense>
   }
 
   return <section id={showAttendance ? 'overview' : 'employees'} aria-labelledby={showAttendance ? 'overview-heading' : 'employees-heading'} className="space-y-6 text-ink">
+    {showEmployees && <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse employee profiles, contact details, and attendance.</p></div><button type="button" onClick={onCreateEmployee} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#4f46e5] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338ca] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Create employee</button></div>}
     {showAttendance && <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-[#7778ff]/40 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/3 size-52 rounded-full bg-[#7778ff]/20 blur-3xl" />
       <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,370px)] lg:items-end">
         <div>
-          <span className="text-[11px] font-bold tracking-[.18em] text-white/75">TEAM OVERVIEW</span>
-          <h2 id="overview-heading" className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Your team at a glance.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review attendance activity and current shifts in one place.</p>
+          <h1 id="overview-heading" className="max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Attendance overview</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review employee clock-ins, clock-outs, and active shifts.</p>
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
             <span role="status" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
               <span aria-hidden="true" className={'size-2 rounded-full ' + (live ? 'bg-emerald-300' : 'bg-amber-300')} />
@@ -261,7 +264,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         </label>
         <button type="button" disabled={!employeeFiltersActive} onClick={resetEmployeeFilters} className="min-h-11 rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 xl:col-span-1">Clear filters</button>
       </div>
-      {employeesError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{employeesError}</p>}
+      {employeesError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{employeesError} <button type="button" aria-label="Retry employees" onClick={() => { setEmployeesBusy(true); setEmployeeRefresh(value => value + 1) }} className="font-semibold underline underline-offset-2">Retry</button></p>}
       <div id="employee-results" aria-busy={employeesBusy}>
       {employees.length ? <>
         <ul className="divide-y divide-line border-t border-line lg:hidden">
@@ -278,7 +281,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
               <div className="min-w-0"><dt className="text-muted">Position</dt><dd className="mt-1 break-words font-medium">{employee.position || '—'}</dd></div>
               <div className="min-w-0"><dt className="text-muted">Phone</dt><dd className="mt-1 break-words font-medium">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</dd></div>
             </dl>
-            <button type="button" onClick={() => setSelectedEmployeeId(employee.id)} className="mt-4 min-h-10 rounded-xl border border-line bg-surface px-4 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile and attendance</button>
+            <button type="button" onClick={() => onSelectEmployee?.(employee.id)} className="mt-4 min-h-10 rounded-xl border border-line bg-surface px-4 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile and attendance</button>
           </li>)}
         </ul>
         <div className="hidden overflow-x-auto border-t border-line lg:block">
@@ -292,7 +295,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
                 <td className="px-4 py-4">{employee.position || '—'}</td>
                 <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
                 <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText={employee.terminated_at ? 'Terminated' : 'Inactive'} /></td>
-                <td className="px-7 py-4"><button type="button" onClick={() => setSelectedEmployeeId(employee.id)} className="min-h-9 rounded-lg border border-line px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile</button></td>
+                <td className="px-7 py-4"><button type="button" onClick={() => onSelectEmployee?.(employee.id)} className="min-h-9 rounded-lg border border-line px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile</button></td>
               </tr>)}
             </tbody>
           </table>
@@ -313,7 +316,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         </div>
         <span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{shiftsBusy ? 'Loading…' : shifts.length + ' shown'}</span>
       </div>
-      {shiftsError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{shiftsError}</p>}
+      {shiftsError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{shiftsError} <button type="button" aria-label="Retry attendance" onClick={() => { setShiftsBusy(true); setAttendanceRefresh(value => value + 1) }} className="font-semibold underline underline-offset-2">Retry</button></p>}
       {shifts.length ? <>
         <ul className="divide-y divide-line border-t border-line lg:hidden">
           {shifts.map(shift => <li key={shift.id} className="px-5 py-4 sm:px-7">

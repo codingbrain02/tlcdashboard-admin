@@ -12,6 +12,8 @@ Both administrator roles can view employee records and attendance and can create
 
 Overview shows attendance activity. Employees lists employee accounts with live, server-side name and position search, account-status filtering, and name or position sorting across all pages. Selecting an employee opens their work profile and paginated attendance history. Regular administrators have read-only access. The Super Administrator can edit full name, position, and phone number; employees manage their own sign-in email.
 
+The administration logo returns to Overview and refreshes its data without reloading the document or interrupting the sign-in session. Appearance controls live in the sidebar account area beside Change my password. Admin and Super Admin accounts are text-only: there are no personal avatars or avatar picker. Employee emojis remain visible in employee records. Employee details have their own page heading and account-status badge; Back and the Employees breadcrumb return to the directory with its search/filter state intact. Profile/history network failures offer retry controls and do not leave an endless loading state.
+
 Run `npm install`, `npm run dev`, `npm run lint`, and `npm run build` from this folder. The public Supabase URL and publishable key come from the parent project's `.env.local`. Never place a service key in a `VITE_` variable.
 
 Vercel deployments use `vercel.json` to send security and no-index headers. Its Content Security Policy permits connections to Supabase's `*.supabase.co` domains; add any future custom Supabase domain to `connect-src` before deploying with that domain. Vite's local dev and preview servers do not apply Vercel response headers.

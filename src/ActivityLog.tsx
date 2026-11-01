@@ -49,7 +49,7 @@ export default function ActivityLog() {
   }, [])
   function go(next: number) { setPage(next); setBusy(true) }
   return <section className="space-y-6">
-    <div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Super Administrator</span><h1 className="mt-2 text-3xl font-bold tracking-tight">Activity log</h1><p className="mt-2 text-sm text-muted">Who changed employee accounts, when, and why. Records cannot be edited or deleted here.</p></div>
+    <div><h1 className="text-3xl font-bold tracking-tight">Activity log</h1><p className="mt-2 text-sm text-muted">Who changed employee accounts, when, and why. Records cannot be edited or deleted here.</p></div>
     {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error} <button type="button" onClick={() => setVersion(value => value + 1)} className="underline">Retry</button></p>}
     <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
       {events.map(event => <article key={event.id} className="space-y-3 p-5 sm:p-6">
