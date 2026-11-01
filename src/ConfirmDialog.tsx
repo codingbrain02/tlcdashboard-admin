@@ -11,7 +11,7 @@ export default function ConfirmDialog({ title, children, confirmText, busy, erro
     element?.showModal()
     return () => element?.close()
   }, [])
-  return createPortal(<dialog ref={dialog} aria-labelledby="confirmation-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }} className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-slate-950/60">
+  return createPortal(<dialog ref={dialog} aria-labelledby="confirmation-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-slate-950/60">
     <form onSubmit={event => { event.preventDefault(); event.stopPropagation(); if (!busy) onConfirm() }} className="space-y-5 p-5 sm:p-7">
       <h2 id="confirmation-title" className="text-xl font-bold tracking-tight">{title}</h2>
       <div className="space-y-4 text-sm leading-6">{children}</div>

@@ -49,20 +49,20 @@ export default function ActivityLog() {
   }, [])
   function go(next: number) { setPage(next); setBusy(true) }
   return <section className="space-y-6">
-    <div><h1 className="text-3xl font-bold tracking-tight">Activity log</h1><p className="mt-2 text-sm text-muted">Who changed employee accounts, when, and why. Records cannot be edited or deleted here.</p></div>
+    <div><h1 className="page-title">Activity log</h1><p className="mt-2 text-sm text-muted">Who changed employee accounts, when, and why. Records cannot be edited or deleted here.</p></div>
     {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error} <button type="button" onClick={() => setVersion(value => value + 1)} className="underline">Retry</button></p>}
-    <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="workspace-panel divide-y divide-line">
       {events.map(event => <article key={event.id} className="space-y-3 p-5 sm:p-6">
-        <div className="flex flex-wrap justify-between gap-2"><h2 className="text-sm font-bold">{actions[event.action] || event.action}</h2><time dateTime={event.occurred_at} className="text-xs text-muted">{new Date(event.occurred_at).toLocaleString()}</time></div>
+        <div className="flex flex-wrap justify-between gap-2"><h2 className="text-sm font-semibold">{actions[event.action] || event.action}</h2><time dateTime={event.occurred_at} className="text-xs text-muted">{new Date(event.occurred_at).toLocaleString()}</time></div>
         <p className="text-sm"><strong>{event.actor_name}</strong><span className="text-muted"> · </span>{event.employee_name || 'Employee'}</p>
         {event.reason && <p className="whitespace-pre-wrap break-words text-sm text-muted">{event.reason}</p>}
-        <details className="text-xs"><summary className="cursor-pointer font-semibold text-brand">View changes</summary><dl className="mt-3 space-y-2 rounded-xl bg-soft p-3">
+        <details className="text-xs"><summary className="cursor-pointer font-semibold text-brand">View changes</summary><dl className="mt-3 space-y-2 rounded-lg bg-soft p-4">
           {Object.entries(labels).filter(([key]) => key in event.after_data && event.before_data[key] !== event.after_data[key]).map(([key, label]) => <div key={key}><dt className="font-semibold">{label}</dt><dd className="mt-0.5 break-words text-muted">{valueText(event.before_data[key])} → {valueText(event.after_data[key])}</dd></div>)}
           <div><dt className="font-semibold">Employee ID</dt><dd className="break-all text-muted">{event.employee_id}</dd></div>
         </dl></details>
       </article>)}
       {!events.length && <p role={busy ? 'status' : undefined} className="p-8 text-center text-sm text-muted">{busy ? 'Loading activity…' : 'No actions recorded since activity logging was enabled.'}</p>}
     </div>
-    <nav aria-label="Activity pages" className="flex items-center justify-end gap-3 text-sm"><button type="button" disabled={busy || page === 0} onClick={() => go(page - 1)} className="min-h-10 rounded-xl border border-line px-3 disabled:opacity-40">Previous</button><span>Page {page + 1}</span><button type="button" disabled={busy || !more} onClick={() => go(page + 1)} className="min-h-10 rounded-xl border border-line px-3 disabled:opacity-40">Next</button></nav>
+    <nav aria-label="Activity pages" className="flex items-center justify-end gap-3 text-sm"><button type="button" disabled={busy || page === 0} onClick={() => go(page - 1)} className="button-secondary">Previous</button><span>Page {page + 1}</span><button type="button" disabled={busy || !more} onClick={() => go(page + 1)} className="button-secondary">Next</button></nav>
   </section>
 }

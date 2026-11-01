@@ -47,7 +47,7 @@ function StatusBadge({ active, activeText, inactiveText }: {
   return <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ' + (active
     ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300'
     : inactiveText === 'Terminated' ? 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300')}>
-    <span aria-hidden="true" className={'size-1.5 rounded-full ' + (active ? 'bg-emerald-500' : 'bg-slate-400')} />
+    <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
     {active ? activeText : inactiveText}
   </span>
 }
@@ -55,7 +55,7 @@ function StatusBadge({ active, activeText, inactiveText }: {
 function Pager({ page, hasMore, busy, go, label }: {
   page: number; hasMore: boolean; busy: boolean; go: (page: number) => void; label: string
 }) {
-  const control = 'min-h-10 rounded-xl border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink'
+  const control = 'button-secondary'
   return <nav aria-label={label + ' pages'} className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-7">
     <span className="text-xs text-muted">{label} <span className="font-semibold text-ink">/ Page {page + 1}</span></span>
     <div className="flex items-center gap-2">
@@ -205,64 +205,44 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   }
 
   return <section id={showAttendance ? 'overview' : 'employees'} aria-labelledby={showAttendance ? 'overview-heading' : 'employees-heading'} className="space-y-6 text-ink">
-    {showEmployees && <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-[clamp(1.8rem,3vw,2.4rem)] font-bold tracking-tight">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Browse employee profiles, contact details, and attendance.</p></div><button type="button" onClick={onCreateEmployee} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#4f46e5] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338ca] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand">Create employee</button></div>}
-    {showAttendance && <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3434ae] px-6 py-7 text-white shadow-[0_24px_55px_-36px_rgba(55,55,170,.8)] sm:px-8 sm:py-8">
-      <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-[#7778ff]/40 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/3 size-52 rounded-full bg-[#7778ff]/20 blur-3xl" />
-      <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,370px)] lg:items-end">
-        <div>
-          <h1 id="overview-heading" className="max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Attendance overview</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">Review employee clock-ins, clock-outs, and active shifts.</p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span role="status" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
-              <span aria-hidden="true" className={'size-2 rounded-full ' + (live ? 'bg-emerald-300' : 'bg-amber-300')} />
-              {live ? 'Live updates connected' : 'Reconnecting · checks every 60 seconds'}
-            </span>
-            <span className="text-xs text-white/75">Times shown in your device’s time zone</span>
-          </div>
-          <button type="button" onClick={onCreateEmployee} className="mt-7 inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#303398] shadow-sm transition hover:bg-[#eef0ff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Create employee <span aria-hidden="true">→</span></button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
-            <span className="block text-[11px] font-semibold tracking-wide text-white/75">RECENT SHIFTS</span>
-            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length}</strong>
-            <span className="mt-1 block text-xs text-white/75">On the current page</span>
-          </div>
-          <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
-            <span className="block text-[11px] font-semibold tracking-wide text-white/75">ON DUTY</span>
-            <strong className="mt-3 block text-3xl font-semibold tabular-nums">{shiftsBusy && !shifts.length ? '—' : activeShifts}</strong>
-            <span className="mt-1 block text-xs text-white/75">In listed shifts</span>
-          </div>
-        </div>
+    {showEmployees && <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 id="employees-heading" className="page-title">Employees</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Employee profiles, contact information, and attendance records.</p></div><button type="button" onClick={onCreateEmployee} className="button-primary"><span aria-hidden="true">＋</span>Create employee</button></div>}
+    {showAttendance && <>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div><h1 id="overview-heading" className="page-title">Attendance overview</h1><p className="mt-2 text-sm leading-6 text-muted">Monitor shifts and review your team’s attendance.</p></div>
+        <button type="button" onClick={onCreateEmployee} className="button-primary"><span aria-hidden="true">＋</span>Create employee</button>
       </div>
-    </div>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Attendance on this page">
+        <div className="workspace-panel p-4 sm:p-5"><span className="text-xs font-medium text-muted">Recorded shifts</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length}</strong><span className="mt-2 block text-[11px] text-muted">On this page</span></div>
+        <div className="workspace-panel p-4 sm:p-5"><span className="flex items-center gap-2 text-xs font-medium text-muted"><span className="size-1.5 rounded-full bg-emerald-500" />On duty</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : activeShifts}</strong><span className="mt-2 block text-[11px] text-muted">In the listed shifts</span></div>
+        <div className="workspace-panel col-span-2 p-4 sm:col-span-1 sm:p-5"><span className="text-xs font-medium text-muted">Ended shifts</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length - activeShifts}</strong><span className="mt-2 block text-[11px] text-muted">Completed or terminated on this page</span></div>
+      </div>
+    </>}
 
-    {showEmployees && <section aria-labelledby="employees-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+    {showEmployees && <section aria-labelledby="employee-directory-heading" className="workspace-panel">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">01</span>
           <div>
-            <h3 id="employees-heading" className="text-lg font-bold tracking-tight">Employee directory</h3>
-            <p className="mt-0.5 text-xs text-muted">Your team and their contact details</p>
+            <h2 id="employee-directory-heading" className="section-title">Employee directory</h2>
+            <p className="mt-0.5 text-xs text-muted">Search and filter your team</p>
           </div>
         </div>
-        <span role="status" className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{employeesBusy ? 'Updating…' : employees.length + ' on this page'}</span>
+        <span role="status" className="text-xs text-muted">{employeesBusy ? 'Updating…' : employees.length + ' on this page'}</span>
       </div>
       <div role="search" aria-label="Filter employees" className="grid gap-3 border-t border-line bg-soft/40 px-5 py-4 sm:grid-cols-2 sm:px-7 xl:grid-cols-[minmax(180px,1.5fr)_minmax(160px,1fr)_minmax(130px,.8fr)_minmax(160px,1fr)_auto] xl:items-end">
         <label className="block min-w-0 text-xs font-semibold text-muted">Search by name
-          <input type="search" value={nameSearch} maxLength={80} onChange={event => { setNameSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Name or part of a name" autoComplete="off" className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
+          <input type="search" value={nameSearch} maxLength={80} onChange={event => { setNameSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Name or part of a name" autoComplete="off" className="form-field mt-1.5 font-normal" />
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Position
-          <input type="search" list="employee-position-options" value={positionSearch} maxLength={120} onChange={event => { setPositionSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Any position" autoComplete="off" className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
+          <input type="search" list="employee-position-options" value={positionSearch} maxLength={120} onChange={event => { setPositionSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Any position" autoComplete="off" className="form-field mt-1.5 font-normal" />
           <datalist id="employee-position-options">{positionGroups.flatMap(group => group.positions).map(position => <option key={position} value={position} />)}</datalist>
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Status
-          <select value={employeeStatus} onChange={event => { setEmployeeStatus(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="all">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select>
+          <select value={employeeStatus} onChange={event => { setEmployeeStatus(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="form-field mt-1.5 font-normal"><option value="all">All accounts</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select>
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Sort by
-          <select value={employeeSort} onChange={event => { setEmployeeSort(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"><option value="newest">Newest added</option><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="position-asc">Position A–Z</option><option value="position-desc">Position Z–A</option></select>
+          <select value={employeeSort} onChange={event => { setEmployeeSort(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} className="form-field mt-1.5 font-normal"><option value="newest">Newest added</option><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="position-asc">Position A–Z</option><option value="position-desc">Position Z–A</option></select>
         </label>
-        <button type="button" disabled={!employeeFiltersActive} onClick={resetEmployeeFilters} className="min-h-11 rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 xl:col-span-1">Clear filters</button>
+        <button type="button" disabled={!employeeFiltersActive} onClick={resetEmployeeFilters} className="button-secondary min-h-11 sm:col-span-2 xl:col-span-1">Clear filters</button>
       </div>
       {employeesError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{employeesError} <button type="button" aria-label="Retry employees" onClick={() => { setEmployeesBusy(true); setEmployeeRefresh(value => value + 1) }} className="font-semibold underline underline-offset-2">Retry</button></p>}
       <div id="employee-results" aria-busy={employeesBusy}>
@@ -285,8 +265,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
           </li>)}
         </ul>
         <div className="hidden overflow-x-auto border-t border-line lg:block">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
+          <table className="workspace-table min-w-[760px]">
+            <thead className="bg-soft text-[11px] font-semibold text-muted">
               <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Position</th><th scope="col" className="px-4 py-3">Phone</th><th scope="col" className="px-4 py-3">Account status</th><th scope="col" className="px-7 py-3">Details</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -295,7 +275,7 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
                 <td className="px-4 py-4">{employee.position || '—'}</td>
                 <td className="px-4 py-4 whitespace-nowrap">{employee.phone_number ? formatPhoneNumberIntl(employee.phone_number) || employee.phone_number : '—'}</td>
                 <td className="px-4 py-4"><StatusBadge active={employee.is_active} activeText="Active" inactiveText={employee.terminated_at ? 'Terminated' : 'Inactive'} /></td>
-                <td className="px-7 py-4"><button type="button" onClick={() => onSelectEmployee?.(employee.id)} className="min-h-9 rounded-lg border border-line px-3 text-xs font-semibold text-brand transition hover:border-brand hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View profile</button></td>
+                <td className="px-7 py-4"><button type="button" onClick={() => onSelectEmployee?.(employee.id)} className="button-secondary min-h-9 text-brand">View profile</button></td>
               </tr>)}
             </tbody>
           </table>
@@ -305,16 +285,15 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
       <Pager label="Employees" page={employeePage} hasMore={employeesMore} busy={employeesBusy} go={page => { setEmployeesBusy(true); setEmployeePage(page) }} />
     </section>}
 
-    {showAttendance && <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
+    {showAttendance && <section aria-labelledby="attendance-heading" className="workspace-panel">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-xs font-extrabold text-brand">02</span>
           <div>
-            <h3 id="attendance-heading" className="text-lg font-bold tracking-tight">Attendance activity</h3>
-            <p className="mt-0.5 text-xs text-muted">Latest shifts first · local time</p>
+            <h2 id="attendance-heading" className="section-title">Attendance records</h2>
+            <p className="mt-1 text-xs text-muted">Newest first · times shown in your device’s time zone</p>
           </div>
         </div>
-        <span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{shiftsBusy ? 'Loading…' : shifts.length + ' shown'}</span>
+        <span role="status" className="inline-flex items-center gap-2 text-xs text-muted" title={live ? 'Live updates connected' : 'Reconnecting · checks every 60 seconds'}><span aria-hidden="true" className={'size-1.5 rounded-full ' + (live ? 'bg-emerald-500' : 'bg-amber-500')} />{live ? 'Live updates' : 'Reconnecting…'}</span>
       </div>
       {shiftsError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300 sm:mx-7">{shiftsError} <button type="button" aria-label="Retry attendance" onClick={() => { setShiftsBusy(true); setAttendanceRefresh(value => value + 1) }} className="font-semibold underline underline-offset-2">Retry</button></p>}
       {shifts.length ? <>
@@ -331,8 +310,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
           </li>)}
         </ul>
         <div className="hidden overflow-x-auto border-t border-line lg:block">
-          <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-soft text-[11px] font-semibold uppercase tracking-wider text-muted">
+          <table className="workspace-table min-w-[680px]">
+            <thead className="bg-soft text-[11px] font-semibold text-muted">
               <tr><th scope="col" className="px-7 py-3">Employee</th><th scope="col" className="px-4 py-3">Clock in</th><th scope="col" className="px-4 py-3">End time</th><th scope="col" className="px-7 py-3">Status</th></tr>
             </thead>
             <tbody className="divide-y divide-line">

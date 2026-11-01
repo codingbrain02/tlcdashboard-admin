@@ -12,8 +12,8 @@ import { employeeColumns, serviceMessage, type EmployeeProfile, type EmployeeShi
 const CountryPhoneInput = lazy(() => import('./CountryPhoneInput'))
 
 const pageSize = 25
-const input = 'min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10'
-const primaryButton = 'inline-flex min-h-10 items-center justify-center rounded-xl bg-[#4f46e5] px-4 text-sm font-semibold text-white transition hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand'
+const input = 'form-field'
+const primaryButton = 'button-primary'
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
@@ -25,9 +25,9 @@ function registrationInput(value: string) {
 }
 
 function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div className="min-w-0 rounded-2xl border border-line bg-soft/60 p-4">
-    <dt className="text-xs font-semibold text-muted">{label}</dt>
-    <dd className={'mt-1 break-words font-semibold text-ink ' + (mono ? 'font-mono text-xs' : 'text-sm')}>{value}</dd>
+  return <div className="min-w-0 border-b border-line py-4">
+    <dt className="text-xs text-muted">{label}</dt>
+    <dd className={'mt-2 break-words font-medium text-ink ' + (mono ? 'font-mono text-xs' : 'text-sm')}>{value}</dd>
   </div>
 }
 
@@ -213,9 +213,9 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
   }
 
   return <div className="space-y-6 text-ink">
-    <button type="button" onClick={onBack} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-soft focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand"><span aria-hidden="true">←</span> All employees</button>
-    <section className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line bg-soft/60 px-5 py-6 sm:px-7">
+    <button type="button" onClick={onBack} className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-muted hover:text-brand"><span aria-hidden="true">←</span> All employees</button>
+    <section className="workspace-panel">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-6 sm:px-7">
         <div className="flex min-w-0 items-center gap-4">{profile && <EmojiAvatar value={profile.avatar_emoji} className="size-14 bg-brand/10 text-3xl" />}<div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight">{profile?.full_name || (profileLoading ? 'Loading employee…' : 'Employee')}</h1><p className="mt-1 text-sm text-muted">Employee profile and contact details</p></div></div>
         {profile && <span className={'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ' + (profile.terminated_at ? 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-200' : profile.is_active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200' : 'bg-soft text-muted')}><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{profile.terminated_at ? 'Terminated' : profile.is_active ? 'Active account' : 'Inactive account'}</span>}
       </div>
@@ -226,14 +226,15 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
           <div className="grid gap-5 sm:grid-cols-2">
             <div><label htmlFor="edit-full-name" className="mb-2 block text-sm font-semibold">Full name</label><input id="edit-full-name" required maxLength={120} value={fullName} onChange={event => setFullName(event.target.value)} className={input} /></div>
             <div><label htmlFor="edit-position" className="mb-2 block text-sm font-semibold">Position</label><select id="edit-position" required value={positionChoice} onChange={event => setPositionChoice(event.target.value)} className={input}><option value="" disabled>Select a position</option>{positionGroups.map(group => <optgroup key={group.label} label={group.label}>{group.positions.map(position => <option key={position} value={position}>{position}</option>)}</optgroup>)}<option value="Other">Other / custom position</option></select>{positionChoice === 'Other' && <input aria-label="Custom position" required maxLength={120} value={otherPosition} onChange={event => setOtherPosition(event.target.value)} className={input + ' mt-2'} placeholder="Enter position" />}</div>
-            <div className="sm:col-span-2"><label htmlFor="edit-phone" className="mb-2 block text-sm font-semibold">Phone number</label><Suspense fallback={<p role="status" className="text-sm text-muted">Loading phone field…</p>}><CountryPhoneInput id="edit-phone" required international defaultCountry="PH" countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} value={phoneNumber || undefined} onChange={value => setPhoneNumber(value ?? '')} countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink" /></Suspense></div>
+            <div className="sm:col-span-2"><label htmlFor="edit-phone" className="mb-2 block text-sm font-semibold">Phone number</label><Suspense fallback={<p role="status" className="text-sm text-muted">Loading phone field…</p>}><CountryPhoneInput id="edit-phone" required international defaultCountry="PH" countryCallingCodeEditable={false} limitMaxLength addInternationalOption={false} value={phoneNumber || undefined} onChange={value => setPhoneNumber(value ?? '')} countrySelectProps={{ 'aria-label': 'Phone country' }} className="phone-field min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink" /></Suspense></div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-semibold">Registered<input type="datetime-local" step="0.001" required value={registeredAt} onChange={event => setRegisteredAt(event.target.value)} className={input + ' mt-2'} /></label><label className="text-sm font-semibold">Employment start date<input type="date" required value={startDate} onChange={event => setStartDate(event.target.value)} className={input + ' mt-2'} /></label></div>
           <p className="text-xs leading-5 text-muted">Employee IDs stay fixed to preserve record ownership. Account status is managed through the confirmed account controls below.</p>
           {saveError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200">{saveError}</p>}
           <div className="flex flex-wrap gap-2"><button type="submit" disabled={saving} className={primaryButton}>{saving ? 'Saving…' : 'Save details'}</button><button type="button" disabled={saving} onClick={() => { setEditing(false); setSaveError('') }} className="min-h-10 rounded-xl border border-line px-4 text-sm font-semibold hover:bg-soft disabled:opacity-50">Cancel</button></div>
         </form> : <>
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="section-title">Work information</h2>
+          <dl className="mt-2 grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
             <Detail label="Full name" value={profile.full_name || '—'} />
             <Detail label="Position" value={profile.position || '—'} />
             <Detail label="Employee ID" value={profile.id} mono />
@@ -245,14 +246,13 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
           </dl>
           {canEdit && <button type="button" onClick={startEditing} className={primaryButton + ' mt-6'}>Edit work details</button>}
         </>}
-        {canEdit && !editing && <EmployeeEmailEditor key={profile.email} profile={profile} onChanged={refreshEmployee} />}
+        {canEdit && !editing && <section aria-label="Employee sign-in and security" className="mt-6 border-t border-line pt-5"><h2 className="section-title">Sign-in and security</h2><EmployeeEmailEditor key={profile.email} profile={profile} onChanged={refreshEmployee} /><PasswordReset key={profile.id} targetId={profile.id} name={profile.full_name} /></section>}
         <EmployeeActions profile={profile} onChanged={refreshEmployee} />
-        {canEdit && <PasswordReset key={profile.id} targetId={profile.id} name={profile.full_name} />}
       </div>}
     </section>
 
-    <section aria-labelledby="employee-attendance-heading" className="overflow-hidden rounded-[24px] border border-line bg-surface shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7"><div><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Attendance history</span><h2 id="employee-attendance-heading" className="mt-1 text-xl font-bold tracking-tight">Every shift</h2><p className="mt-1 text-xs text-muted">Newest first · times shown in your device’s time zone</p></div><span className="rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-muted">{shifts.length} of {total} loaded</span></div>
+    <section aria-labelledby="employee-attendance-heading" className="workspace-panel">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7"><div><h2 id="employee-attendance-heading" className="section-title">Attendance history</h2><p className="mt-1 text-xs text-muted">Newest first · times shown in your device’s time zone</p></div><span className="rounded-full bg-soft px-3 py-1.5 text-xs font-medium text-muted">{shifts.length} of {total} loaded</span></div>
       {historyError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200 sm:mx-7">{historyError}</p>}
       {canEdit && shifts.length > 0 && <div className="px-5 pb-4 sm:px-7"><label className="text-sm font-semibold">Correct a shift<select value="" onChange={event => { const shift = shifts.find(item => item.id === event.target.value); if (shift) setSelectedShift(shift) }} className={input + ' mt-2'}><option value="" disabled>Select a loaded shift to review and edit</option>{shifts.map(shift => <option key={shift.id} value={shift.id}>{dateTime(shift.clock_in)} — {shift.end_reason === 'terminated' ? 'Terminated' : shift.clock_out ? 'Completed' : 'On duty'}</option>)}</select></label></div>}
       <div className="max-h-[480px] overflow-y-auto border-y border-line">

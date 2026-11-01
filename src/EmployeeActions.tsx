@@ -3,8 +3,8 @@ import { supabase } from './supabase'
 import ConfirmDialog, { ChangeReview } from './ConfirmDialog'
 import { serviceMessage, type EmployeeProfile } from './employeeTypes'
 
-const field = 'mt-1.5 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20'
-const button = 'min-h-10 rounded-xl border border-line px-4 text-sm font-semibold hover:bg-soft disabled:opacity-50'
+const field = 'form-field mt-1.5'
+const button = 'button-secondary'
 const reasons = ['Performance', 'Attendance', 'Misconduct', 'Policy violation', 'End of contract', 'Redundancy', 'Other']
 type Action = 'terminate' | 'reverse-termination' | 'rehire' | 'sync-employee-access'
 const titles: Record<Action, string> = { terminate: 'Terminate employee', 'reverse-termination': 'Reverse termination', rehire: 'Rehire employee', 'sync-employee-access': 'Synchronize account access' }
@@ -35,7 +35,7 @@ export default function EmployeeActions({ profile, onChanged }: { profile: Emplo
     finally { setBusy(false) }
   }
   return <section aria-label="Employee account controls" className="mt-6 space-y-4 border-t border-line pt-5">
-    <div><h2 className="text-sm font-bold">Account controls</h2><p className="mt-1 text-xs text-muted">Changes require confirmation and are recorded in the activity log.</p></div>
+    <div><h2 className="section-title">Employment status</h2><p className="mt-1 text-xs leading-5 text-muted">Termination and rehire actions require confirmation and are recorded in the activity log.</p></div>
     {profile.terminated_at && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200">Terminated {new Date(profile.terminated_at).toLocaleString()}. {profile.termination_reason}{profile.termination_details ? `: ${profile.termination_details}` : ''}</p>}
     <div className="flex flex-wrap gap-2">
       {profile.is_active && <button type="button" onClick={() => open('terminate')} className={button + ' border-rose-300 text-rose-700 dark:text-rose-300'}>Terminate employee</button>}
@@ -71,7 +71,7 @@ export function EmployeeEmailEditor({ profile, onChanged }: { profile: EmployeeP
     } catch { setError('Could not reach the account service.') }
     finally { setBusy(false) }
   }
-  return <form onSubmit={event => { event.preventDefault(); setError(''); setReview({ email: email.trim().toLowerCase(), revision: profile.revision, previous: profile.email ?? '' }) }} className="mt-6 space-y-3 border-t border-line pt-5">
+  return <form onSubmit={event => { event.preventDefault(); setError(''); setReview({ email: email.trim().toLowerCase(), revision: profile.revision, previous: profile.email ?? '' }) }} className="mt-4 max-w-xl space-y-3">
     <label className="block text-sm font-semibold">Sign-in email<input type="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} className={field} /></label>
     <p className="text-xs text-muted">The employee will use this address next time they sign in. It changes immediately.</p>
     <button type="submit" disabled={busy || email.trim().toLowerCase() === profile.email?.toLowerCase()} className={button}>Review email change</button>

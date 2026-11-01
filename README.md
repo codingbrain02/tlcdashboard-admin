@@ -1,5 +1,11 @@
 # TLC Administrator App
 
+## Workspace design
+
+The employee and administration projects share matching Tailwind design tokens and reusable `workspace-*`, `button-*`, and `form-field` component classes in `src/global.css`. Preserve their alignment when changing typography, surfaces, spacing, or controls. The UI uses local system fonts with no additional UI dependencies. Navigation collapses on small screens; keyboard skip links, visible focus states, and reduced-motion support are included.
+
+Attendance summary counts explicitly describe the current page, not organization-wide totals. Employee profiles separate work information, Super Administrator-only sign-in controls, and confirmed employment-status actions. Admin and Super Admin accounts remain avatar-free. These presentation changes do not change database policies, realtime behavior, or password-session rules.
+
 ## Password controls
 
 The password release also requires parent migration `202611010004_auth_password_transaction_order.sql`, which follows Supabase Auth's separate metadata/password writes and preserves mandatory setup during automatic password rehashes.
@@ -10,7 +16,7 @@ This admin app uses the same Supabase project as the employee app; it does not n
 
 Both administrator roles can view employee records and attendance and can create employee accounts. Only the Super Administrator can view and create administrator accounts. Regular administrators cannot read other administrator profiles or administrator attendance, including the Super Administrator's personal details. Apply the parent project's migrations and deploy its `admin-api` function before deploying this frontend.
 
-Overview shows attendance activity. Employees lists employee accounts with live, server-side name and position search, account-status filtering, and name or position sorting across all pages. Selecting an employee opens their work profile and paginated attendance history. Regular administrators have read-only access. The Super Administrator can edit full name, position, and phone number; employees manage their own sign-in email.
+Overview shows attendance activity. Employees lists employee accounts with live, server-side name and position search, account-status filtering, and name or position sorting across all pages. Selecting an employee opens their work profile and paginated attendance history. Regular administrators cannot edit work details, sign-in email, another account's password, or attendance records; both administrator roles retain confirmed termination, reversal, and rehire controls. The Super Administrator can edit employee details, and employees can manage their own contact information.
 
 The administration logo returns to Overview and refreshes its data without reloading the document or interrupting the sign-in session. Appearance controls live in the sidebar account area beside Change my password. Admin and Super Admin accounts are text-only: there are no personal avatars or avatar picker. Employee emojis remain visible in employee records. Employee details have their own page heading and account-status badge; Back and the Employees breadcrumb return to the directory with its search/filter state intact. Profile/history network failures offer retry controls and do not leave an endless loading state.
 
