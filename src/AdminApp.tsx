@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { positionGroups } from './positions'
 import PasswordSettings from './PasswordSettings'
-import PasswordSuccessToast from './PasswordSuccessToast'
+import { showSuccessToast } from './successNotifications'
 import PasswordReset from './PasswordReset'
 
 const Overview = lazy(() => import('./Overview'))
@@ -42,17 +42,18 @@ function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
   </button>
 }
 
-function Notice({ children, bad = false }: { children: ReactNode; bad?: boolean }) {
-  return <p role={bad ? 'alert' : 'status'} className={'mt-4 rounded-xl border p-3 text-sm leading-6 ' + (bad ? 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100' : 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100')}>{children}</p>
+function ErrorNotice({ children }: { children: ReactNode }) {
+  return <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm leading-6 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100">{children}</p>
 }
 
 function PasswordResult({ issued, dismiss }: { issued: IssuedPassword; dismiss: () => void }) {
-  const [copied, setCopied] = useState(false)
-  return <div role="status" className="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-100 sm:p-5">
-    <div className="flex items-start gap-3"><span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">✓</span><div><strong className="block text-base">Account created</strong><p className="mt-1 break-all text-xs">{issued.label}</p></div></div>
+  const [copyError, setCopyError] = useState('')
+  return <div aria-label="New account sign-in details" className="mt-5 rounded-xl border border-line bg-soft p-4 text-sm text-ink sm:p-5">
+    <div><strong className="block text-base">Sign-in details</strong><p className="mt-1 break-all text-xs text-muted">{issued.label}</p></div>
     <p className="mt-4 text-xs leading-5">Share this temporary password privately. It appears only once and must be changed at first sign-in.</p>
-    <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-3 dark:border-emerald-800 dark:bg-[#182b2b]"><span className="block text-[10px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-300">Temporary password</span><code className="mt-2 block break-all font-mono text-sm font-semibold text-slate-900 dark:text-white">{issued.password}</code></div>
-    <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(issued.password); setCopied(true) } catch { setCopied(false) } }} className="min-h-9 rounded-lg bg-emerald-700 px-3 text-xs font-semibold text-white transition hover:bg-emerald-800">{copied ? 'Copied' : 'Copy password'}</button><button type="button" onClick={dismiss} className="min-h-9 px-2 text-xs font-semibold text-emerald-900 underline underline-offset-2 dark:text-emerald-200">Hide password</button></div>
+    <div className="mt-4 rounded-lg border border-line bg-surface p-3"><span className="section-kicker">Temporary password</span><code className="mt-2 block break-all font-mono text-sm font-semibold">{issued.password}</code></div>
+    <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={async () => { setCopyError(''); try { await navigator.clipboard.writeText(issued.password); showSuccessToast('Password copied.') } catch { setCopyError('Could not copy the password. Select and copy it manually.') } }} className="button-secondary">Copy password</button><button type="button" onClick={dismiss} className="min-h-9 px-2 text-xs font-semibold text-muted underline underline-offset-2">Hide password</button></div>
+    {copyError && <p role="alert" className="mt-3 text-xs text-rose-700 dark:text-rose-300">{copyError}</p>}
   </div>
 }
 
@@ -83,8 +84,8 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
   return <main className="auth-layout">
     <div className="hidden lg:block"><span className="section-kicker">Administration workspace</span><h2 className="mt-4 max-w-xl text-[clamp(2rem,4vw,3rem)] leading-[1.15] font-semibold tracking-[-0.045em]">Your people.<br />One workspace.</h2><p className="mt-5 max-w-sm text-sm leading-7 text-muted">Manage employee accounts, monitor attendance, and keep team records up to date.</p><div className="mt-8 hidden max-w-sm space-y-4 border-t border-line pt-6 sm:block"><p className="text-sm font-medium">Role-based access</p><p className="text-xs leading-6 text-muted">Employee records and account controls are available only to authorized administrators.</p></div></div>
     <section className="workspace-panel w-full max-w-[420px] p-6 sm:p-8 lg:max-w-none"><h1 className="text-2xl font-semibold tracking-tight">Administrator sign in</h1><p className="mt-2 text-sm leading-6 text-muted">Use your assigned administrator credentials.</p>
-      {!supabase && <Notice bad>Supabase is not configured in the parent project environment.</Notice>}
-      {error && <Notice bad>{error}</Notice>}
+      {!supabase && <ErrorNotice>Supabase is not configured in the parent project environment.</ErrorNotice>}
+      {error && <ErrorNotice>{error}</ErrorNotice>}
       <form onSubmit={submit} className="mt-7 space-y-5"><div><label htmlFor="identifier" className="mb-2 block text-sm font-semibold">Username or super administrator email</label><input id="identifier" required autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} className={field} placeholder="Your username" /></div><div><label htmlFor="password" className="mb-2 block text-sm font-semibold">Password</label><input id="password" required type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} className={field} placeholder="Enter your password" /></div><button type="submit" disabled={!supabase || busy} className={button + ' w-full'}>{busy ? 'Signing in…' : 'Sign in'}</button></form>
     </section>
   </main>
@@ -106,12 +107,12 @@ function ChangePassword({ onDone, onSignOut }: { onDone: () => void; onSignOut: 
     try {
       const result = await supabase.functions.invoke('admin-api', { body: { action: 'change-password', currentPassword: current, newPassword: next } })
       if (result.error) { setError('Could not change password. Check your current password and try again.'); return }
-      setCurrent(''); setNext(''); setConfirm('')
+      setCurrent(''); setNext(''); setConfirm(''); showSuccessToast('Password changed successfully.')
       onDone()
     } catch { setError('Password service is temporarily unavailable.') }
     finally { setBusy(false) }
   }
-  return <main className="mx-auto grid min-h-[calc(100vh-88px)] max-w-md place-items-center px-5 pb-12"><section className="w-full rounded-3xl border border-line bg-surface p-6 shadow-sm sm:p-8"><h1 className="text-2xl font-bold">Change your temporary password</h1><p className="mt-2 text-sm leading-6 text-muted">Set a private password before accessing administration.</p>{error && <Notice bad>{error}</Notice>}<form onSubmit={submit} className="mt-6 space-y-4"><div><label htmlFor="current" className="mb-2 block text-sm font-semibold">Temporary password</label><input id="current" type="password" required autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} className={field} /></div><div><label htmlFor="next" className="mb-2 block text-sm font-semibold">New password</label><input id="next" type="password" required minLength={12} autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} className={field} /></div><div><label htmlFor="confirm" className="mb-2 block text-sm font-semibold">Confirm new password</label><input id="confirm" type="password" required minLength={12} autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} className={field} /></div><button type="submit" disabled={busy} className={button + ' w-full'}>{busy ? 'Updating…' : 'Change password'}</button></form><button type="button" onClick={onSignOut} className="mt-5 text-sm font-semibold text-muted underline">Sign out</button></section></main>
+  return <main className="mx-auto grid min-h-[calc(100vh-88px)] max-w-md place-items-center px-5 pb-12"><section className="w-full rounded-3xl border border-line bg-surface p-6 shadow-sm sm:p-8"><h1 className="text-2xl font-bold">Change your temporary password</h1><p className="mt-2 text-sm leading-6 text-muted">Set a private password before accessing administration.</p>{error && <ErrorNotice>{error}</ErrorNotice>}<form onSubmit={submit} className="mt-6 space-y-4"><div><label htmlFor="current" className="mb-2 block text-sm font-semibold">Temporary password</label><input id="current" type="password" required autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} className={field} /></div><div><label htmlFor="next" className="mb-2 block text-sm font-semibold">New password</label><input id="next" type="password" required minLength={12} autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} className={field} /></div><div><label htmlFor="confirm" className="mb-2 block text-sm font-semibold">Confirm new password</label><input id="confirm" type="password" required minLength={12} autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} className={field} /></div><button type="submit" disabled={busy} className={button + ' w-full'}>{busy ? 'Updating…' : 'Change password'}</button></form><button type="button" onClick={onSignOut} className="mt-5 text-sm font-semibold text-muted underline">Sign out</button></section></main>
 }
 
 function EmployeeForm() {
@@ -133,7 +134,7 @@ function EmployeeForm() {
       const position = draft.position === 'Other' ? otherPosition.trim() : draft.position
       const result = await supabase.functions.invoke('admin-api', { body: { action: 'create-employee', ...draft, position } })
       if (result.error || typeof result.data?.temporaryPassword !== 'string') { setError('Could not create employee. Check the email is unused and try again.'); return }
-      setIssued({ label: result.data.email, password: result.data.temporaryPassword })
+      setIssued({ label: result.data.email, password: result.data.temporaryPassword }); showSuccessToast('Employee account created.')
       setDraft(blankEmployee)
       setOtherPosition('')
     } catch { setError('Could not reach the account service.') }
@@ -143,7 +144,7 @@ function EmployeeForm() {
     <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-6 sm:px-8 sm:pt-8">
       <div><h2 className="section-title">Employee information</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted">All fields are required. A temporary password is generated when you create the account.</p></div>
     </div>
-    <div className="px-5 sm:px-8">{error && <Notice bad>{error}</Notice>}{issued && <PasswordResult issued={issued} dismiss={() => setIssued(null)} />}</div>
+    <div className="px-5 sm:px-8">{error && <ErrorNotice>{error}</ErrorNotice>}{issued && <PasswordResult issued={issued} dismiss={() => setIssued(null)} />}</div>
     <form onSubmit={submit} className="mt-7 min-w-0">
       <div className="grid min-w-0 gap-x-5 gap-y-5 px-5 sm:grid-cols-2 sm:px-8">
         <div className="min-w-0"><label htmlFor="full-name" className="mb-2 block text-sm font-semibold">Full name</label><input id="full-name" required maxLength={120} autoComplete="name" value={draft.fullName} onChange={e => change('fullName', e.target.value)} className={field} placeholder="e.g. Alex Morgan" /></div>
@@ -224,7 +225,7 @@ function AdminForm() {
     try {
       const result = await supabase.functions.invoke('admin-api', { body: { action: 'create-admin', username: username.trim().toLowerCase() } })
       if (result.error || typeof result.data?.temporaryPassword !== 'string') { setError('Could not create administrator. Check the username is unused.'); return }
-      setIssued({ label: result.data.username, password: result.data.temporaryPassword })
+      setIssued({ label: result.data.username, password: result.data.temporaryPassword }); showSuccessToast('Administrator account created.')
       setUsername('')
       void refresh()
     } catch { setError('Could not reach the account service.') }
@@ -232,7 +233,7 @@ function AdminForm() {
   }
   return <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,.8fr)]">
     <section className="workspace-panel">
-      <div className="px-5 pt-6 sm:px-8 sm:pt-8"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Privileged access</span><h2 className="section-title">Invite an administrator</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted">Create a unique username for trusted staff. Their temporary password is shown only once.</p>{error && <Notice bad>{error}</Notice>}{issued && <PasswordResult issued={issued} dismiss={() => setIssued(null)} />}</div>
+      <div className="px-5 pt-6 sm:px-8 sm:pt-8"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-brand">Privileged access</span><h2 className="section-title">Invite an administrator</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted">Create a unique username for trusted staff. Their temporary password is shown only once.</p>{error && <ErrorNotice>{error}</ErrorNotice>}{issued && <PasswordResult issued={issued} dismiss={() => setIssued(null)} />}</div>
       <form onSubmit={submit} className="mt-7">
         <div className="px-5 sm:px-8"><label htmlFor="admin-username" className="mb-2 block text-sm font-semibold">Unique username</label><input id="admin-username" required minLength={3} maxLength={32} pattern="[a-z][a-z0-9_]{2,31}" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} className={field} placeholder="e.g. team_manager" /><p className="mt-2 text-xs leading-5 text-muted">3–32 lowercase letters, numbers, or underscores. Start with a letter.</p></div>
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line bg-soft/70 px-5 py-5 sm:px-8"><p className="max-w-sm text-xs leading-5 text-muted">Only the Super Administrator can grant this access.</p><button type="submit" disabled={busy} className={button}>{busy ? 'Creating…' : 'Create administrator'}<span aria-hidden="true">→</span></button></div>
@@ -240,7 +241,7 @@ function AdminForm() {
     </section>
     <aside className="workspace-panel p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3"><div><h2 className="section-title">Administrators</h2></div><span className="rounded-full bg-soft px-3 py-1.5 text-xs font-bold text-muted">{directory.length} total</span></div>
-      {directoryError && <Notice bad>{directoryError}</Notice>}
+      {directoryError && <ErrorNotice>{directoryError}</ErrorNotice>}
       <ul className="mt-5 space-y-2.5">{directory.map(entry => <li key={entry.id} className="rounded-lg border border-line p-4">
         <strong className="block break-all text-sm">{entry.role === 'super_admin' ? 'Super Administrator' : entry.username}</strong>
         <span className="mt-1 block text-xs text-muted">{entry.must_change_password ? 'Password change pending' : 'Active'}</span>
@@ -270,7 +271,6 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
   const [refreshing, setRefreshing] = useState(false)
   const refreshBusy = useRef(false)
   const [security, setSecurity] = useState(false)
-  const [passwordSavedVersion, setPasswordSavedVersion] = useState(0)
   const isSuper = account.role === 'super_admin'
   const tabs: { id: DashboardTab; label: string }[] = isSuper
     ? [{ id: 'overview', label: 'Overview' }, { id: 'employees', label: 'Employees' }, { id: 'create_employee', label: 'Create employee' }, { id: 'administrators', label: 'Administrators' }, { id: 'activity', label: 'Activity log' }]
@@ -323,8 +323,7 @@ function Dashboard({ account, signOut, theme, toggleTheme }: { account: AdminRec
           {tab === 'create_employee' ? <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.7fr)]"><EmployeeForm /><aside className="workspace-panel p-6 sm:p-7"><div className="relative"><span className="text-[11px] font-bold uppercase tracking-[.18em] text-muted">Onboarding</span><h2 className="mt-2 section-title">Account setup</h2><p className="mt-2 text-sm leading-6 text-muted">Complete these steps to give an employee access.</p><ol className="mt-7 space-y-5">{[['01', 'Add their details', 'Name, position, contact number and email.'], ['02', 'Share their access', 'A one-time password appears after creation.'], ['03', 'Let them get started', 'They set a new password before clocking in.']].map(([number, title, detail]) => <li key={number} className="flex gap-3.5"><span className="grid size-7 shrink-0 place-items-center rounded-full border border-line bg-soft text-[11px] font-semibold text-muted">{number}</span><span><strong className="block text-sm font-semibold">{title}</strong><span className="mt-1 block text-xs leading-5 text-muted">{detail}</span></span></li>)}</ol><div className="mt-8 rounded-lg border border-line bg-soft p-4 text-xs leading-5 text-muted">Keep temporary passwords private. Employees must change theirs at first sign-in.</div></div></aside></div> : isSuper ? <AdminForm /> : null}
         </>}
       </main>
-      {passwordSavedVersion > 0 && <PasswordSuccessToast key={passwordSavedVersion} />}
-      {security && <PasswordSettings onChanged={() => setPasswordSavedVersion(version => version + 1)} onClose={() => setSecurity(false)} />}
+      {security && <PasswordSettings onChanged={() => showSuccessToast('Password changed successfully.')} onClose={() => setSecurity(false)} />}
     </div>
   </div>
 }

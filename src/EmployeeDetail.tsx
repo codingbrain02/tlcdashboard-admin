@@ -5,6 +5,7 @@ import { supabase } from './supabase'
 import EmployeeActions, { EmployeeEmailEditor } from './EmployeeActions'
 import AttendanceEditor from './AttendanceEditor'
 import PasswordReset from './PasswordReset'
+import { showSuccessToast } from './successNotifications'
 import EmojiAvatar from './EmojiAvatar'
 import ConfirmDialog, { ChangeReview } from './ConfirmDialog'
 import { employeeColumns, serviceMessage, type EmployeeProfile, type EmployeeShift as Shift } from './employeeTypes'
@@ -49,7 +50,6 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
   const [editingSnapshot, setEditingSnapshot] = useState<EmployeeProfile | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [saveNotice, setSaveNotice] = useState('')
   const [fullName, setFullName] = useState('')
   const [positionChoice, setPositionChoice] = useState('')
   const [otherPosition, setOtherPosition] = useState('')
@@ -165,7 +165,6 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
     setRegisteredAt(registrationInput(profile.created_at))
     setStartDate(profile.employment_start_date ?? '')
     setSaveError('')
-    setSaveNotice('')
     setEditing(true)
   }
 
@@ -206,7 +205,7 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
       setProfile(result.data.employee as EmployeeProfile)
       setEditing(false)
       setReview(null)
-      setSaveNotice('Employee details saved.')
+      showSuccessToast('Employee details saved.')
       setProfileVersion(value => value + 1)
     } catch { setSaveError('Could not reach the account service.') }
     finally { setSaving(false) }
@@ -220,7 +219,6 @@ export default function EmployeeDetail({ employeeId, canEdit, onBack }: {
         {profile && <span className={'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ' + (profile.terminated_at ? 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-200' : profile.is_active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200' : 'bg-soft text-muted')}><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{profile.terminated_at ? 'Terminated' : profile.is_active ? 'Active account' : 'Inactive account'}</span>}
       </div>
       {profileError && <p role="alert" className="mx-5 mt-5 rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-200 sm:mx-7">{profileError} <button type="button" aria-label="Retry employee profile" onClick={() => setProfileVersion(value => value + 1)} className="font-semibold underline underline-offset-2">Retry</button></p>}
-      {saveNotice && <p role="status" className="mx-5 mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200 sm:mx-7">{saveNotice}</p>}
       {profile && <div className="p-5 sm:p-7">
         {editing ? <form onSubmit={save} className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">

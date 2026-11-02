@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabase'
+import { showSuccessToast } from './successNotifications'
 import ConfirmDialog, { ChangeReview } from './ConfirmDialog'
 import { serviceMessage, type EmployeeProfile } from './employeeTypes'
 
@@ -19,17 +20,18 @@ export default function EmployeeActions({ profile, onChanged }: { profile: Emplo
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [syncWarning, setSyncWarning] = useState('')
   function open(next: Action) { setSnapshot(profile); setCategory(''); setReason(''); setError(''); setAction(next) }
   async function confirm() {
     if (!supabase || !action || busy) return
-    setBusy(true); setError(''); setNotice('')
+    setBusy(true); setError(''); setSyncWarning('')
     try {
       const result = await supabase.functions.invoke('admin-api', { body: {
         action, employeeId: profile.id, revision: snapshot.revision, category, reason, startDate, confirmed: true,
       } })
       if (result.error || !result.data?.employee) { setError(await serviceMessage(result, 'Could not update this account.')); return }
-      setNotice(result.data.syncPending ? result.data.message : action === 'terminate' ? 'Employee terminated. Account access is blocked.' : 'Account access restored. The employee must sign in again and start a new shift.')
+      if (result.data.syncPending) setSyncWarning(result.data.message || 'Account access synchronization is pending. Please retry.')
+      else showSuccessToast(action === 'terminate' ? 'Employee terminated. Account access blocked.' : action === 'rehire' ? 'Employee rehired.' : action === 'reverse-termination' ? 'Termination reversed.' : 'Account access synchronized.')
       setAction(null); onChanged()
     } catch { setError('Could not reach the account service. Please retry.') }
     finally { setBusy(false) }
@@ -42,7 +44,7 @@ export default function EmployeeActions({ profile, onChanged }: { profile: Emplo
       {profile.terminated_at && <><button type="button" onClick={() => open('reverse-termination')} className={button}>Reverse termination</button><button type="button" onClick={() => open('rehire')} className={button}>Rehire employee</button></>}
       {profile.auth_sync_pending && <button type="button" onClick={() => open('sync-employee-access')} className={button}>Retry access synchronization</button>}
     </div>
-    {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
+    {syncWarning && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">{syncWarning}</p>}
     {action && <ConfirmDialog title={titles[action]} confirmText={titles[action]} danger={action === 'terminate'} busy={busy} error={error} onConfirm={() => void confirm()} onCancel={() => setAction(null)}>
       <p>Are you sure you want to {action === 'reverse-termination' ? 'reverse the termination of' : action === 'sync-employee-access' ? 'synchronize access for' : action} <strong>{snapshot.full_name}</strong>?</p>
       <p className="text-muted">{action === 'terminate' ? 'Their running shift will end as Terminated. They will be signed out and blocked from account actions. Previous records are kept.' : action === 'sync-employee-access' ? 'This retries the sign-in protection for the current account status.' : 'The same account will be restored. Old shifts stay stopped, and the employee must sign in again.'}</p>
@@ -58,7 +60,6 @@ export function EmployeeEmailEditor({ profile, onChanged }: { profile: EmployeeP
   const [review, setReview] = useState<{ email: string; revision: number; previous: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   async function save() {
     if (!supabase || !review || busy) return
     setBusy(true); setError('')
@@ -67,7 +68,7 @@ export function EmployeeEmailEditor({ profile, onChanged }: { profile: EmployeeP
         action: 'update-employee-email', employeeId: profile.id, email: review.email, revision: review.revision, confirmed: true,
       } })
       if (result.error) { setError(await serviceMessage(result, 'Could not change email.')); return }
-      setReview(null); setNotice('Employee sign-in email updated.'); onChanged()
+      setReview(null); showSuccessToast('Employee sign-in email updated.'); onChanged()
     } catch { setError('Could not reach the account service.') }
     finally { setBusy(false) }
   }
@@ -75,7 +76,6 @@ export function EmployeeEmailEditor({ profile, onChanged }: { profile: EmployeeP
     <label className="block text-sm font-semibold">Sign-in email<input type="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} className={field} /></label>
     <p className="text-xs text-muted">The employee will use this address next time they sign in. It changes immediately.</p>
     <button type="submit" disabled={busy || email.trim().toLowerCase() === profile.email?.toLowerCase()} className={button}>Review email change</button>
-    {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
     {review && <ConfirmDialog title="Change sign-in email?" confirmText="Confirm email change" busy={busy} error={error} onConfirm={() => void save()} onCancel={() => setReview(null)}><p>Change the sign-in email for <strong>{profile.full_name}</strong>?</p><ChangeReview entries={[{ label: 'Email', before: review.previous, after: review.email }]} /></ConfirmDialog>}
   </form>
 }

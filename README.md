@@ -2,6 +2,8 @@
 
 ## Workspace design
 
+Routine success messages use one root-level `SuccessToast`, dispatched with `showSuccessToast` from `src/successNotifications.ts`. They fade and disappear after 1.2 seconds, including repeated identical saves and forms that close or remount. Errors and pending account-access synchronization warnings stay visible. Account creation uses a short success toast plus a persistent sign-in-details panel; temporary passwords are never put in a toast or automatically hidden.
+
 The employee and administration projects share matching Tailwind design tokens and reusable `workspace-*`, `button-*`, and `form-field` component classes in `src/global.css`. Preserve their alignment when changing typography, surfaces, spacing, or controls. The UI uses local system fonts with no additional UI dependencies. Navigation collapses on small screens; keyboard skip links, visible focus states, and reduced-motion support are included.
 
 Attendance summary counts explicitly describe the current page, not organization-wide totals. Employee profiles separate work information, Super Administrator-only sign-in controls, and confirmed employment-status actions. Admin and Super Admin accounts remain avatar-free. These presentation changes do not change database policies, realtime behavior, or password-session rules.

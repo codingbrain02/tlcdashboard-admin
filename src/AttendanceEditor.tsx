@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabase'
+import { showSuccessToast } from './successNotifications'
 import ConfirmDialog, { ChangeReview } from './ConfirmDialog'
 import { serviceMessage, type EmployeeShift } from './employeeTypes'
 
@@ -33,7 +34,7 @@ export default function AttendanceEditor({ shift, employeeId, employeeName, revi
         expectedEndReason: shift.end_reason, reason, confirmed: true,
       } })
       if (result.error) { setError(await serviceMessage(result, 'Could not correct attendance.')); return }
-      onSaved(); onClose()
+      onSaved(); onClose(); showSuccessToast('Attendance record updated.')
     } catch { setError('Could not save this correction. Check the dates and try again.') }
     finally { setBusy(false) }
   }
