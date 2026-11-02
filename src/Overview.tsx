@@ -229,8 +229,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         <span role="status" className="text-xs text-muted">{employeesBusy ? 'Updating…' : employees.length + ' on this page'}</span>
       </div>
       <div role="search" aria-label="Filter employees" className="grid gap-3 border-t border-line bg-soft/40 px-5 py-4 sm:grid-cols-2 sm:px-7 xl:grid-cols-[minmax(180px,1.5fr)_minmax(160px,1fr)_minmax(130px,.8fr)_minmax(160px,1fr)_auto] xl:items-end">
-        <label className="block min-w-0 text-xs font-semibold text-muted">Search by name
-          <input type="search" value={nameSearch} maxLength={80} onChange={event => { setNameSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Name or part of a name" autoComplete="off" className="form-field mt-1.5 font-normal" />
+        <label className="block min-w-0 text-xs font-semibold text-muted">Name or employee ID
+          <input type="search" value={nameSearch} maxLength={80} onChange={event => { setNameSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Name or full employee ID" autoComplete="off" className="form-field mt-1.5 font-normal" />
         </label>
         <label className="block min-w-0 text-xs font-semibold text-muted">Position
           <input type="search" list="employee-position-options" value={positionSearch} maxLength={120} onChange={event => { setPositionSearch(event.target.value); setEmployeePage(0); setEmployeesBusy(true) }} placeholder="Any position" autoComplete="off" className="form-field mt-1.5 font-normal" />
