@@ -24,6 +24,17 @@ type Shift = {
   clock_out: string | null
   end_reason: 'clock_out' | 'terminated'
 }
+type TeamAvailability = { activeEmployees: number; onDuty: number; offDuty: number }
+
+function readAvailability(value: unknown): TeamAvailability | null {
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  const counts = [record.active_employees, record.on_duty, record.off_duty]
+  if (!counts.every(count => typeof count === 'number' && Number.isSafeInteger(count) && count >= 0)) return null
+  const [activeEmployees, onDuty, offDuty] = counts as number[]
+  if (onDuty + offDuty !== activeEmployees) return null
+  return { activeEmployees, onDuty, offDuty }
+}
 
 function localDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
@@ -86,6 +97,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
   const [shiftsBusy, setShiftsBusy] = useState(true)
   const [employeesError, setEmployeesError] = useState('')
   const [shiftsError, setShiftsError] = useState('')
+  const [availability, setAvailability] = useState<TeamAvailability | null>(null)
+  const [availabilityError, setAvailabilityError] = useState('')
   const [employeeRefresh, setEmployeeRefresh] = useState(0)
   const [attendanceRefresh, setAttendanceRefresh] = useState(0)
   const [live, setLive] = useState(false)
@@ -117,8 +130,8 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_profiles' }, queueEmployees)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employee_profiles' }, queueEmployees)
     if (showAttendance) channel
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance' }, queueAttendance)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attendance' }, queueAttendance)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, queueAttendance)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employee_profiles' }, queueAttendance)
     channel.subscribe(status => {
       if (!active) return
       connected = status === 'SUBSCRIBED'
@@ -180,14 +193,23 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
     void supabase.functions.invoke('admin-api', { body: { action: 'list-attendance', page: attendancePage } })
       .then(result => {
         if (!live) return
-        if (result.error || !Array.isArray(result.data?.shifts)) setShiftsError('Could not load attendance.')
-        else { setShifts(result.data.shifts); setShiftsMore(Boolean(result.data.hasMore)); setShiftsError('') }
-      }).catch(() => { if (live) setShiftsError('Could not load attendance.') })
+        if (result.error || !Array.isArray(result.data?.shifts)) {
+          setShiftsError('Could not load attendance.')
+          setAvailabilityError('Could not load team availability.')
+        } else {
+          setShifts(result.data.shifts); setShiftsMore(Boolean(result.data.hasMore)); setShiftsError('')
+          const totals = readAvailability(result.data.availability)
+          if (totals) { setAvailability(totals); setAvailabilityError('') }
+          else setAvailabilityError('Could not load team availability.')
+        }
+      }).catch(() => {
+        if (live) { setShiftsError('Could not load attendance.'); setAvailabilityError('Could not load team availability.') }
+      })
       .finally(() => { if (live) { setShiftsBusy(false); onRefreshed?.() } })
     return () => { live = false }
   }, [attendancePage, attendanceRefresh, showAttendance, refreshVersion, onRefreshed])
 
-  const activeShifts = shifts.filter(shift => !shift.clock_out).length
+  const team = availabilityError ? null : availability
   const employeeFiltersActive = Boolean(nameSearch || positionSearch || employeeStatus !== 'all' || employeeSort !== 'newest')
   const employeeSearchActive = Boolean(nameSearch || positionSearch || employeeStatus !== 'all')
 
@@ -211,11 +233,14 @@ export default function Overview({ onCreateEmployee, mode = 'overview', canEdit 
         <div><h1 id="overview-heading" className="page-title">Attendance overview</h1><p className="mt-2 text-sm leading-6 text-muted">Monitor shifts and review your team’s attendance.</p></div>
         <button type="button" onClick={onCreateEmployee} className="button-primary"><span aria-hidden="true">＋</span>Create employee</button>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Attendance on this page">
-        <div className="workspace-panel p-4 sm:p-5"><span className="text-xs font-medium text-muted">Recorded shifts</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length}</strong><span className="mt-2 block text-[11px] text-muted">On this page</span></div>
-        <div className="workspace-panel p-4 sm:p-5"><span className="flex items-center gap-2 text-xs font-medium text-muted"><span className="size-1.5 rounded-full bg-emerald-500" />On duty</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : activeShifts}</strong><span className="mt-2 block text-[11px] text-muted">In the listed shifts</span></div>
-        <div className="workspace-panel col-span-2 p-4 sm:col-span-1 sm:p-5"><span className="text-xs font-medium text-muted">Ended shifts</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{shiftsBusy && !shifts.length ? '—' : shifts.length - activeShifts}</strong><span className="mt-2 block text-[11px] text-muted">Completed or terminated on this page</span></div>
-      </div>
+      <section aria-label="Team availability" className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <div className="workspace-panel p-4 sm:p-5"><span className="text-xs font-medium text-muted">Active employees</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{team?.activeEmployees ?? '—'}</strong><span className="mt-2 block text-[11px] text-muted">Enabled employee accounts</span></div>
+          <div className="workspace-panel p-4 sm:p-5"><span className="flex items-center gap-2 text-xs font-medium text-muted"><span className="size-1.5 rounded-full bg-emerald-500" />On duty</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{team?.onDuty ?? '—'}</strong><span className="mt-2 block text-[11px] text-muted">Currently clocked in</span></div>
+          <div className="workspace-panel col-span-2 p-4 sm:col-span-1 sm:p-5"><span className="text-xs font-medium text-muted">Off duty</span><strong className="mt-3 block text-[28px] leading-none font-semibold tracking-tight tabular-nums">{team?.offDuty ?? '—'}</strong><span className="mt-2 block text-[11px] text-muted">No active shift</span></div>
+        </div>
+        {availabilityError && !shiftsError && <p role="alert" className="rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">{availabilityError} <button type="button" aria-label="Retry team availability" onClick={() => { setShiftsBusy(true); setAttendanceRefresh(value => value + 1) }} className="font-semibold underline underline-offset-2">Retry</button></p>}
+      </section>
     </>}
 
     {showEmployees && <section aria-labelledby="employee-directory-heading" className="workspace-panel">

@@ -6,7 +6,9 @@ Routine success messages use one root-level `SuccessToast`, dispatched with `sho
 
 The employee and administration projects share matching Tailwind design tokens and reusable `workspace-*`, `button-*`, and `form-field` component classes in `src/global.css`. Preserve their alignment when changing typography, surfaces, spacing, or controls. The UI uses local system fonts with no additional UI dependencies. Navigation collapses on small screens; keyboard skip links, visible focus states, and reduced-motion support are included.
 
-Attendance summary counts explicitly describe the current page, not organization-wide totals. Employee profiles separate work information, Super Administrator-only sign-in controls, and confirmed employment-status actions. Admin and Super Admin accounts remain avatar-free. These presentation changes do not change database policies, realtime behavior, or password-session rules.
+The overview's Active employees, On duty, and Off duty cards count all active employees across the organization, independent of the attendance table's page. Inactive, terminated, and administrator accounts are excluded. On duty means an open shift even if the employee is signed out or closes the site; Off duty means an enabled employee without an open shift. Totals come from one database snapshot and refresh on attendance/profile changes, reconnects, and focus. Missing or invalid totals show unavailable values and retry controls, not fake zeros. Apply parent migration `202611030001_team_availability.sql` and deploy `admin-api` before publishing this frontend.
+
+Employee profiles separate work information, Super Administrator-only sign-in controls, and confirmed employment-status actions. Admin and Super Admin accounts remain avatar-free. The team totals do not broaden browser database access or change password-session rules.
 
 ## Password controls
 
